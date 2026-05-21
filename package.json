@@ -19,6 +19,7 @@
     "@react-navigation/bottom-tabs": "^7.15.5",
     "@react-navigation/elements": "^2.9.10",
     "@react-navigation/native": "^7.1.33",
+    "@react-three/fiber": "^9.6.1",
     "@rn-primitives/accordion": "^1.4.0",
     "@rn-primitives/alert-dialog": "^1.4.0",
     "@rn-primitives/aspect-ratio": "^1.4.0",
