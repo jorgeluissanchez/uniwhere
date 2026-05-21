@@ -27,7 +27,7 @@ export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
     const rows = await res.json().catch(() => []);
     if (!Array.isArray(rows)) return [];
     return rows.map((r: any) => ({
-      scanId:    r.scan_id,
+      scanId:    r._id,
       userId:    r.user_id,
       jobId:     r.job_id,
       serie:     r.serie,
@@ -45,7 +45,6 @@ export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
       body: JSON.stringify({
         tableName: 'scan',
         records: [{
-          scan_id:    scan.scanId,
           user_id:    scan.userId,
           job_id:     scan.jobId,
           serie:      scan.serie,
@@ -66,7 +65,7 @@ export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
     await fetch(`${this.dbUrl}/delete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ tableName: 'scan', filter: { scan_id: scanId } }),
+      body: JSON.stringify({ tableName: 'scan', filter: { _id: scanId } }),
     });
   }
 }

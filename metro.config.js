@@ -7,17 +7,17 @@ const config = getDefaultConfig(__dirname);
 config.resolver.unstable_enablePackageExports = true;
 config.resolver.unstable_conditionNames = ["react-native", "require", "default"];
 
-// Force a single Three.js instance — r3f and our parser both import it
-config.resolver.extraNodeModules = {
-  three: path.resolve(__dirname, 'node_modules/three'),
-};
+const THREE_MAIN = path.resolve(__dirname, 'node_modules/three/build/three.cjs');
 
 const nativeWindConfig = withNativeWind(config, { input: './src/global.css', inlineRem: 16 });
 
-// @react-three/fiber has an empty "exports" map, so Metro won't resolve
-// its /native subpath when package-exports mode is on. Bypass it explicitly.
 const upstream = nativeWindConfig.resolver.resolveRequest;
 nativeWindConfig.resolver.resolveRequest = (ctx, moduleName, platform) => {
+  // Force a single Three.js instance regardless of which package imports it
+  if (moduleName === 'three') {
+    return { filePath: THREE_MAIN, type: 'sourceFile' };
+  }
+  // @react-three/fiber has an empty "exports" map — bypass it explicitly
   if (moduleName === '@react-three/fiber/native') {
     return { filePath: require.resolve('@react-three/fiber/native'), type: 'sourceFile' };
   }
