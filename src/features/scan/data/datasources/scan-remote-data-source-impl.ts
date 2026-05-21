@@ -20,11 +20,37 @@ export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
     return t;
   }
 
-  async getScansByUser(userId: string): Promise<Scan[]> {
-    const token = await this.token();
-    const res = await fetch(`${this.dbUrl}/read?tableName=scan&user_id=${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
+  private async refreshToken(): Promise<string> {
+    const refresh = await this.prefs.retrieveData<string>('refreshToken');
+    if (!refresh) throw new Error('Sesión expirada, inicia sesión de nuevo');
+    const base = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://roble-api.openlab.uninorte.edu.co';
+    const projectId = process.env.EXPO_PUBLIC_ROBLE_PROJECT_ID!;
+    const res = await fetch(`${base}/auth/${projectId}/refresh-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: refresh }),
     });
+    if (!res.ok) throw new Error('Sesión expirada, inicia sesión de nuevo');
+    const data = await res.json();
+    const newToken: string = data.accessToken;
+    await this.prefs.storeData('token', newToken);
+    return newToken;
+  }
+
+  private async fetchAuth(url: string, init: RequestInit = {}): Promise<Response> {
+    let token = await this.token();
+    const makeReq = (t: string) => fetch(url, {
+      ...init,
+      headers: { ...(init.headers as Record<string, string> ?? {}), Authorization: `Bearer ${t}` },
+    });
+    const res = await makeReq(token);
+    if (res.status !== 401) return res;
+    token = await this.refreshToken();
+    return makeReq(token);
+  }
+
+  async getScansByUser(userId: string): Promise<Scan[]> {
+    const res = await this.fetchAuth(`${this.dbUrl}/read?tableName=scan&user_id=${userId}`);
     const rows = await res.json().catch(() => []);
     if (!Array.isArray(rows)) return [];
     return rows.map((r: any) => ({
@@ -34,23 +60,23 @@ export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
       serie:     r.serie,
       tipo:      r.tipo,
       localUri:  r.local_uri,
-      createdAt: r.created_at,
+      createdAt: r.created_at ?? '',
     }));
   }
 
   async saveScan(params: SaveScanParams): Promise<void> {
-    const token = await this.token();
-    const res = await fetch(`${this.dbUrl}/insert`, {
+    const res = await this.fetchAuth(`${this.dbUrl}/insert`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         tableName: 'scan',
         records: [{
-          user_id:   params.userId,
-          job_id:    params.jobId,
-          serie:     params.serie,
-          tipo:      params.tipo,
-          local_uri: params.localUri,
+          user_id:    params.userId,
+          job_id:     params.jobId,
+          serie:      params.serie,
+          tipo:       params.tipo,
+          local_uri:  params.localUri,
+          created_at: new Date().toISOString(),
         }],
       }),
     });
@@ -60,12 +86,28 @@ export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
     }
   }
 
+  async updateScan(scanId: string, localUri: string): Promise<void> {
+    await this.fetchAuth(`${this.dbUrl}/update`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tableName: 'scan',
+        idColumn: '_id',
+        idValue: scanId,
+        updates: { local_uri: localUri },
+      }),
+    });
+  }
+
   async deleteScan(scanId: string): Promise<void> {
-    const token = await this.token();
-    await fetch(`${this.dbUrl}/delete`, {
+    const res = await this.fetchAuth(`${this.dbUrl}/delete`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tableName: 'scan', idColumn: '_id', idValue: scanId }),
     });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      throw new Error(detail?.detail ?? `Error al eliminar el escaneo (HTTP ${res.status})`);
+    }
   }
 }

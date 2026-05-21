@@ -13,6 +13,10 @@ export class ScanRepositoryImpl implements ScanRepository {
     return this.remoteDS.saveScan(params);
   }
 
+  async updateScan(scanId: string, localUri: string): Promise<void> {
+    return this.remoteDS.updateScan(scanId, localUri);
+  }
+
   async deleteScan(scanId: string): Promise<void> {
     return this.remoteDS.deleteScan(scanId);
   }

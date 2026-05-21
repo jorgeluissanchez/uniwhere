@@ -10,6 +10,7 @@ type ScanContextType = {
   loading: boolean;
   error: string | null;
   saveScan: (params: SaveScanParams) => Promise<void>;
+  updateScan: (scanId: string, localUri: string) => Promise<void>;
   deleteScan: (scanId: string) => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -31,7 +32,7 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       const result = await repo.getScansByUser(loggedUser.userId);
-      setScans(result.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+      setScans(result.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '')));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al cargar los escaneos');
     } finally {
@@ -46,13 +47,18 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
     await refresh();
   }, [repo, refresh]);
 
+  const updateScan = useCallback(async (scanId: string, localUri: string) => {
+    await repo.updateScan(scanId, localUri);
+    setScans(prev => prev.map(s => s._id === scanId ? { ...s, localUri } : s));
+  }, [repo]);
+
   const deleteScan = useCallback(async (scanId: string) => {
     await repo.deleteScan(scanId);
     setScans(prev => prev.filter(s => s._id !== scanId));
   }, [repo]);
 
   return (
-    <ScanContext.Provider value={{ scans, loading, error, saveScan, deleteScan, refresh }}>
+    <ScanContext.Provider value={{ scans, loading, error, saveScan, updateScan, deleteScan, refresh }}>
       {children}
     </ScanContext.Provider>
   );
