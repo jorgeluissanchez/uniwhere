@@ -2,6 +2,9 @@ import ToastProvider from '@/core/components/ui/toast';
 import { DIProvider } from '@/core/di/di-provider';
 import { useTheme } from '@/core/hooks/use-theme';
 import { AuthProvider } from '@/features/auth/presentation/context/auth-context';
+import { ViewerProvider } from '@/features/viewer/presentation/context/viewer-context';
+import { ReconstructionProvider } from '@/features/reconstruction/presentation/context/reconstruction-context';
+import { ScanProvider } from '@/features/scan/presentation/context/scan-context';
 import "@/global.css";
 import { ThemeProvider } from '@react-navigation/native';
 import { PortalHost } from '@rn-primitives/portal';
@@ -41,16 +44,22 @@ export default function RootLayout() {
         />
     <DIProvider>
       <AuthProvider>
-        <ThemeProvider value={theme}>
-          <ToastProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen name="(app)" options={{ headerShown: false }} />
-            </Stack>
-          </ToastProvider>
-          <PortalHost />
-        </ThemeProvider>
+        <ViewerProvider>
+          <ReconstructionProvider>
+            <ScanProvider>
+              <ThemeProvider value={theme}>
+                <ToastProvider>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="index" options={{ headerShown: false }} />
+                    <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                    <Stack.Screen name="(app)" options={{ headerShown: false }} />
+                  </Stack>
+                </ToastProvider>
+                <PortalHost />
+              </ThemeProvider>
+            </ScanProvider>
+          </ReconstructionProvider>
+        </ViewerProvider>
       </AuthProvider>
     </DIProvider>
     </>
