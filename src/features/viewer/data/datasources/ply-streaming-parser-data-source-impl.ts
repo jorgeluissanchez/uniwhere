@@ -1,6 +1,6 @@
 import { ParseResult, PlyStreamingParserDataSource } from '@/features/viewer/data/datasources/ply-streaming-parser-data-source';
-import { File } from 'expo-file-system';
 import * as THREE from 'three';
+import { Platform } from 'react-native';
 
 const MAX_HEADER_BYTES = 8192;
 const CHUNK_VERTICES = 80_000;
@@ -70,21 +70,85 @@ function readFloat(view: DataView, offset: number, type: PropType): number {
   }
 }
 
+function buildGeometry(
+  buffer: ArrayBuffer,
+  header: Header,
+  maxPoints: number,
+): { geometry: THREE.BufferGeometry; vertexCount: number; hasColors: boolean } {
+  const { vertexCount, stride, dataOffset, props } = header;
+
+  const step = vertexCount <= maxPoints ? 1 : Math.ceil(vertexCount / maxPoints);
+  const outputCount = Math.ceil(vertexCount / step);
+
+  const xP = props.find(p => p.name === 'x');
+  const yP = props.find(p => p.name === 'y');
+  const zP = props.find(p => p.name === 'z');
+  const rP = props.find(p => p.name === 'red');
+  const gP = props.find(p => p.name === 'green');
+  const bP = props.find(p => p.name === 'blue');
+
+  if (!xP || !yP || !zP) { throw new Error('PLY: faltan propiedades x/y/z'); }
+  const hasColors = !!(rP && gP && bP);
+
+  const positions = new Float32Array(outputCount * 3);
+  const colors = hasColors ? new Float32Array(outputCount * 3) : null;
+
+  const view = new DataView(buffer, dataOffset);
+  let outIdx = 0;
+
+  for (let i = 0; i < vertexCount; i++) {
+    if (i % step === 0 && outIdx < outputCount) {
+      const base = i * stride;
+      positions[outIdx * 3 + 0] = readFloat(view, base + xP.offset, xP.type);
+      positions[outIdx * 3 + 1] = readFloat(view, base + yP.offset, yP.type);
+      positions[outIdx * 3 + 2] = readFloat(view, base + zP.offset, zP.type);
+      if (hasColors && colors && rP && gP && bP) {
+        colors[outIdx * 3 + 0] = view.getUint8(base + rP.offset) / 255;
+        colors[outIdx * 3 + 1] = view.getUint8(base + gP.offset) / 255;
+        colors[outIdx * 3 + 2] = view.getUint8(base + bP.offset) / 255;
+      }
+      outIdx++;
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions.slice(0, outIdx * 3), 3));
+  if (hasColors && colors) {
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors.slice(0, outIdx * 3), 3));
+  }
+
+  return { geometry, vertexCount: outIdx, hasColors };
+}
+
 export class PlyStreamingParserDataSourceImpl implements PlyStreamingParserDataSource {
   async parse(fileUri: string, maxPoints: number): Promise<ParseResult> {
+    if (Platform.OS === 'web') {
+      return this.parseFromUrl(fileUri, maxPoints);
+    }
+    return this.parseFromFile(fileUri, maxPoints);
+  }
+
+  private async parseFromUrl(url: string, maxPoints: number): Promise<ParseResult> {
+    const res = await fetch(url);
+    if (!res.ok) { throw new Error(`Error al cargar el modelo (HTTP ${res.status})`); }
+    const buffer = await res.arrayBuffer();
+    const headerRaw = new TextDecoder().decode(new Uint8Array(buffer, 0, Math.min(MAX_HEADER_BYTES, buffer.byteLength)));
+    const { header } = parseHeader(headerRaw);
+    return buildGeometry(buffer, header, maxPoints);
+  }
+
+  private async parseFromFile(fileUri: string, maxPoints: number): Promise<ParseResult> {
+    const { File } = await import('expo-file-system');
     const handle = new File(fileUri).open();
     try {
-      // 1. Leer encabezado
       const headerBytes = handle.readBytes(MAX_HEADER_BYTES);
       const headerRaw = new TextDecoder().decode(headerBytes);
       const { header } = parseHeader(headerRaw);
       const { vertexCount, stride, dataOffset, props } = header;
 
-      // 2. Calcular paso de muestreo
       const step = vertexCount <= maxPoints ? 1 : Math.ceil(vertexCount / maxPoints);
       const outputCount = Math.ceil(vertexCount / step);
 
-      // 3. Localizar propiedades necesarias
       const xP = props.find(p => p.name === 'x');
       const yP = props.find(p => p.name === 'y');
       const zP = props.find(p => p.name === 'z');
@@ -98,7 +162,6 @@ export class PlyStreamingParserDataSourceImpl implements PlyStreamingParserDataS
       const positions = new Float32Array(outputCount * 3);
       const colors = hasColors ? new Float32Array(outputCount * 3) : null;
 
-      // 4. Leer vértices en chunks usando FileHandle con seek por offset
       let outIdx = 0;
       let vertexIdx = 0;
 
@@ -125,7 +188,6 @@ export class PlyStreamingParserDataSourceImpl implements PlyStreamingParserDataS
         vertexIdx += chunkVerts;
       }
 
-      // 5. Construir BufferGeometry
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.BufferAttribute(positions.slice(0, outIdx * 3), 3));
       if (hasColors && colors) {

@@ -1,26 +1,15 @@
 import { Button } from '@/core/components/ui/button';
-import { Text } from '@/core/components/ui/text';
 import { Drawer, DrawerContent, DrawerTitle } from '@/core/components/ui/drawer';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/core/components/ui/alert-dialog';
+import { Text } from '@/core/components/ui/text';
 import { Scan } from '@/features/scan/domain/entities/scan';
-import { useScan } from '@/features/scan/presentation/context/scan-context';
 import { NewScanDrawer } from '@/features/scan/presentation/components/new-scan-drawer';
-import { ScanListItem } from '@/features/scan/presentation/components/scan-list-item';
+import { useScan } from '@/features/scan/presentation/context/scan-context';
 import { useViewer } from '@/features/viewer/presentation/context/viewer-context';
-import { Camera, Plus } from 'lucide-react-native';
 import { File, Paths } from 'expo-file-system';
 import { RelativePathString, useRouter } from 'expo-router';
+import { Camera, Plus, X } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, View } from 'react-native';
 
 export function ScanScreen() {
   const router = useRouter();
@@ -30,7 +19,6 @@ export function ScanScreen() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const handleViewModel = async () => {
@@ -38,18 +26,25 @@ export function ScanScreen() {
     setViewLoading(true);
     setActionError(null);
     try {
-      let uri = selectedScan.localUri;
+      const remoteUrl = `${process.env.EXPO_PUBLIC_RECONSTRUCTION_API_URL}/download/${selectedScan.jobId}?tipo=${selectedScan.tipo ?? 'dense'}`;
+      let uri: string;
 
-      const file = new File(uri);
-      if (!file.exists) {
-        const url = `${process.env.EXPO_PUBLIC_RECONSTRUCTION_API_URL}/download/${selectedScan.jobId}?tipo=${selectedScan.tipo ?? 'dense'}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`Error al descargar el modelo (HTTP ${res.status})`);
-        const bytes = new Uint8Array(await res.arrayBuffer());
-        const dest = new File(Paths.cache, `${selectedScan.jobId}_${selectedScan.tipo ?? 'dense'}.ply`);
-        dest.write(bytes);
-        uri = dest.uri;
-        await updateScan(selectedScan._id, uri);
+      if (Platform.OS === 'web') {
+        uri = remoteUrl;
+      } else {
+        const localUri = selectedScan.localUri;
+        const fileExists = localUri ? new File(localUri).exists : false;
+        if (fileExists) {
+          uri = localUri;
+        } else {
+          const res = await fetch(remoteUrl);
+          if (!res.ok) throw new Error(`Error al descargar el modelo (HTTP ${res.status})`);
+          const bytes = new Uint8Array(await res.arrayBuffer());
+          const dest = new File(Paths.cache, `${selectedScan.jobId}_${selectedScan.tipo ?? 'dense'}.ply`);
+          dest.write(bytes);
+          uri = dest.uri;
+          await updateScan(selectedScan._id, uri);
+        }
       }
 
       setSelectedScan(null);
@@ -62,21 +57,10 @@ export function ScanScreen() {
     }
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleDelete = async () => {
     if (!selectedScan) return;
-    try {
-      await deleteScan(selectedScan._id);
-      setShowDeleteDialog(false);
-      setSelectedScan(null);
-    } catch (e) {
-      setActionError(e instanceof Error ? e.message : 'No se pudo eliminar el escaneo');
-      setShowDeleteDialog(false);
-    }
-  };
-
-  const handleSelectScan = (scan: Scan) => {
-    setActionError(null);
-    setSelectedScan(scan);
+    await deleteScan(selectedScan._id);
+    setSelectedScan(null);
   };
 
   return (
@@ -99,11 +83,31 @@ export function ScanScreen() {
       ) : (
         <ScrollView className="flex-1" contentContainerClassName="px-5 pb-24 gap-3">
           {scans.map(scan => (
-            <ScanListItem
+            <View
               key={scan._id}
-              scan={scan}
-              onPress={() => handleSelectScan(scan)}
-            />
+              className="bg-white rounded-2xl px-4 py-4 gap-1.5 border border-gray-200 active:opacity-70"
+            >
+              <View className="flex-row items-center justify-between">
+                <Text className="text-gray-900 font-semibold text-base flex-1 mr-2" numberOfLines={1}>
+                  {scan.serie}
+                </Text>
+                <View className="bg-blue-50 border border-blue-300 rounded-full px-2.5 py-0.5">
+                  <Text className="text-blue-600 text-xs">{scan.tipo}</Text>
+                </View>
+              </View>
+              <Text className="text-gray-400 text-xs">
+                {scan.createdAt
+                  ? new Date(scan.createdAt).toLocaleDateString('es-CO', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : ''}
+              </Text>
+              <Button variant="outline" onPress={() => setSelectedScan(scan)}>
+                <Text>Ver Detalles</Text>
+              </Button>
+            </View>
           ))}
         </ScrollView>
       )}
@@ -118,80 +122,71 @@ export function ScanScreen() {
         </Button>
       </View>
 
-      {/* New scan drawer */}
       <NewScanDrawer open={showDrawer} onClose={() => setShowDrawer(false)} />
 
-      {/* Scan options drawer */}
+      {/* Drawer de opciones del scan seleccionado */}
       <Drawer
-        open={!!selectedScan && !showDeleteDialog}
+        open={!!selectedScan}
         onOpenChange={(o) => { if (!o && !viewLoading) setSelectedScan(null); }}
       >
-        <DrawerContent side="bottom" className="px-6 pt-5 pb-10 gap-3">
+        <DrawerContent>
           <DrawerTitle style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 }}>
             Opciones de escaneo
           </DrawerTitle>
 
-          <View className="w-10 h-1 bg-gray-200 rounded-full self-center mb-1" />
-
-          <View className="mb-1">
-            <Text variant="h4" className="text-gray-900">{selectedScan?.serie}</Text>
-            <Text className="text-gray-400 text-sm mt-0.5">
-              {selectedScan?.tipo?.toUpperCase()}
-              {selectedScan?.createdAt
-                ? ` · ${new Date(selectedScan.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}`
-                : ''}
-            </Text>
-          </View>
-
-          {!!actionError && (
-            <View className="rounded-xl bg-destructive/10 border border-destructive/30 px-3 py-2">
-              <Text className="text-destructive text-sm">{actionError}</Text>
+          <View style={{ flex: 1 }}>
+            <View className="flex-row items-center px-5 pt-4 pb-4 border-b border-gray-100">
+              <Button
+                variant="secondary"
+                onPress={() => { if (!viewLoading) setSelectedScan(null); }}
+                className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
+              >
+                <X size={20} color="#374151" />
+              </Button>
+              <Text variant="h4" className="text-center flex-1" numberOfLines={1}>
+                {selectedScan?.serie?.toUpperCase()}
+              </Text>
+              <View style={{ width: 50 }} />
             </View>
-          )}
 
-          <Button onPress={handleViewModel} disabled={viewLoading}>
-            {viewLoading
-              ? <ActivityIndicator size="small" color="white" />
-              : <Text className="text-white">Ver modelo</Text>
-            }
-          </Button>
+            <ScrollView
+              contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32, gap: 12 }}
+            >
+              <Text className="text-gray-400 text-sm text-center">
+                {selectedScan?.tipo?.toUpperCase()}
+                {selectedScan?.createdAt
+                  ? ` · ${new Date(selectedScan.createdAt).toLocaleDateString('es-CO', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })}`
+                  : ''}
+              </Text>
 
-          <Button variant="secondary" disabled>
-            <Text className="text-gray-400">Probar VPS</Text>
-          </Button>
+              <Button onPress={handleViewModel} disabled={viewLoading}>
+                {viewLoading
+                  ? <ActivityIndicator size="small" color="white" />
+                  : <Text>Ver Modelo</Text>
+                }
+              </Button>
 
-          <Button
-            variant="ghost"
-            onPress={() => setShowDeleteDialog(true)}
-            disabled={viewLoading}
-          >
-            <Text className="text-destructive text-sm">Eliminar</Text>
-          </Button>
+              {!!actionError && (
+                <View className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3">
+                  <Text className="text-sm text-destructive">{actionError}</Text>
+                </View>
+              )}
+
+              <Button variant="secondary" disabled>
+                <Text className="text-gray-400">Probar VPS</Text>
+              </Button>
+
+              <Button variant="ghost" onPress={handleDelete} disabled={viewLoading}>
+                <Text className="text-destructive text-sm">Eliminar</Text>
+              </Button>
+            </ScrollView>
+          </View>
         </DrawerContent>
       </Drawer>
-
-      {/* Delete confirmation */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar escaneo</AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Eliminar "{selectedScan?.serie}"? Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onPress={() => setShowDeleteDialog(false)}>
-              <Text>Cancelar</Text>
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive"
-              onPress={handleDeleteConfirm}
-            >
-              <Text className="text-white">Eliminar</Text>
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </View>
   );
 }
