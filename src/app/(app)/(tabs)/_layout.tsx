@@ -1,6 +1,6 @@
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Tabs, useSegments } from "expo-router";
-import { BarChart3, Home, User } from "lucide-react-native";
+import { BarChart3, Camera, Home, User } from "lucide-react-native";
 import React from "react";
 import { useWindowDimensions, View } from "react-native";
 
@@ -115,6 +115,18 @@ export default function TabsLayout() {
               <SidebarIcon Icon={Home} focused={focused} />
             ) : (
               <BottomIcon Icon={Home} focused={focused} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="scan"
+        options={{
+          title: "Escanear",
+          tabBarIcon: ({ focused }) =>
+            isSidebar ? (
+              <SidebarIcon Icon={Camera} focused={focused} />
+            ) : (
+              <BottomIcon Icon={Camera} focused={focused} />
             ),
         }}
       />
