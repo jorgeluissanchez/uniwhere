@@ -129,12 +129,32 @@ export class PlyStreamingParserDataSourceImpl implements PlyStreamingParserDataS
   }
 
   private async parseFromUrl(url: string, maxPoints: number): Promise<ParseResult> {
-    const res = await fetch(url);
-    if (!res.ok) { throw new Error(`Error al cargar el modelo (HTTP ${res.status})`); }
-    const buffer = await res.arrayBuffer();
+    const buffer = await this.fetchWithCache(url);
     const headerRaw = new TextDecoder().decode(new Uint8Array(buffer, 0, Math.min(MAX_HEADER_BYTES, buffer.byteLength)));
     const { header } = parseHeader(headerRaw);
     return buildGeometry(buffer, header, maxPoints);
+  }
+
+  private async fetchWithCache(url: string): Promise<ArrayBuffer> {
+    try {
+      const cache = await caches.open('ply-models');
+      const cached = await cache.match(url);
+      if (cached) { return cached.arrayBuffer(); }
+
+      const res = await fetch(url, { headers: { 'ngrok-skip-browser-warning': '1' } });
+      if (!res.ok) { throw new Error(`Error al cargar el modelo (HTTP ${res.status})`); }
+      const buffer = await res.arrayBuffer();
+      await cache.put(url, new Response(buffer.slice(0), {
+        headers: { 'Content-Type': 'application/octet-stream' },
+      }));
+      return buffer;
+    } catch (e) {
+      if (e instanceof Error && e.message.startsWith('Error al cargar')) { throw e; }
+      // Cache API not available (private browsing, etc.) — fetch directly
+      const res = await fetch(url, { headers: { 'ngrok-skip-browser-warning': '1' } });
+      if (!res.ok) { throw new Error(`Error al cargar el modelo (HTTP ${res.status})`); }
+      return res.arrayBuffer();
+    }
   }
 
   private async parseFromFile(fileUri: string, maxPoints: number): Promise<ParseResult> {

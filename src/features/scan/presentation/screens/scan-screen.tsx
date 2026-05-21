@@ -37,10 +37,10 @@ export function ScanScreen() {
         if (fileExists) {
           uri = localUri;
         } else {
-          const res = await fetch(remoteUrl);
+          const res = await fetch(remoteUrl, { headers: { 'ngrok-skip-browser-warning': '1' } });
           if (!res.ok) throw new Error(`Error al descargar el modelo (HTTP ${res.status})`);
           const bytes = new Uint8Array(await res.arrayBuffer());
-          const dest = new File(Paths.cache, `${selectedScan.jobId}_${selectedScan.tipo ?? 'dense'}.ply`);
+          const dest = new File(Paths.document, `${selectedScan.jobId}_${selectedScan.tipo ?? 'dense'}.ply`);
           dest.write(bytes);
           uri = dest.uri;
           await updateScan(selectedScan._id, uri);
