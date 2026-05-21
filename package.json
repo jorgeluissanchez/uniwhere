@@ -66,6 +66,7 @@
     "expo-web-browser": "~55.0.16",
     "lucide-react-native": "^1.14.0",
     "nativewind": "^4.2.3",
+    "r3f-native-orbitcontrols": "^1.0.12",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-native": "0.83.6",
