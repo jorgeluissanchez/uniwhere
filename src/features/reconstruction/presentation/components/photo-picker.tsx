@@ -2,8 +2,9 @@ import { Button } from '@/core/components/ui/button';
 import { Text } from '@/core/components/ui/text';
 import * as DocumentPicker from 'expo-document-picker';
 import { Image } from 'expo-image';
+import { Minus } from 'lucide-react-native';
 import React from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert, Pressable, ScrollView, View } from 'react-native';
 
 export type PickedPhoto = {
   uri: string;
@@ -41,21 +42,45 @@ export function PhotoPicker({ photos, onPhotosChange, disabled }: Props) {
     }
   };
 
+  const remove = (index: number) => {
+    onPhotosChange(photos.filter((_, i) => i !== index));
+  };
+
   return (
     <View className="gap-2.5">
-      <View className="flex-row items-center justify-between">
-        <Text variant="small" className="text-gray-600">Fotos ({photos.length}/100)</Text>
-        {photos.length > 0 && (
-          <Button variant="ghost" size="sm" onPress={() => onPhotosChange([])} disabled={disabled}>
-            <Text className="text-destructive text-xs">Limpiar</Text>
-          </Button>
-        )}
-      </View>
+      <Text variant="small" className="text-gray-600">Fotos ({photos.length}/100)</Text>
 
       {photos.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="h-[70px]">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
+        >
           {photos.map((p: PickedPhoto, i: number) => (
-            <Image key={i} source={{ uri: p.uri }} className="w-14 h-14 rounded-md mr-1.5" />
+            <View key={i} style={{ width: 64, height: 64 }}>
+              <Image
+                source={{ uri: p.uri }}
+                style={{ width: 64, height: 64, borderRadius: 12, opacity: 0.85 }}
+              />
+              {!disabled && (
+                <Pressable
+                  onPress={() => remove(i)}
+                  style={{
+                    position: 'absolute',
+                    top: 20,
+                    left: 20,
+                    width: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    backgroundColor: 'rgba(0,0,0,0.55)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Minus size={14} color="#fff" strokeWidth={2.5} />
+                </Pressable>
+              )}
+            </View>
           ))}
         </ScrollView>
       )}

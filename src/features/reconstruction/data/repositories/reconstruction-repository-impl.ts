@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import { ReconstructionJob } from '@/features/reconstruction/domain/entities/reconstruction-job';
 import { ReconstructionRepository, StartJobParams } from '@/features/reconstruction/domain/repositories/reconstruction-repository';
 import { ReconstructionRemoteDataSource } from '@/features/reconstruction/data/datasources/reconstruction-remote-data-source';
@@ -17,13 +17,16 @@ export class ReconstructionRepositoryImpl implements ReconstructionRepository {
   async downloadPly(jobId: string, tipo: 'dense' | 'splat' = 'dense'): Promise<string> {
     const job = await this.remoteDS.getStatus(jobId);
     const fileName = `${job.serie}_${tipo}.ply`;
-    const localUri = `${FileSystem.cacheDirectory}${fileName}`;
     const url = `${process.env.EXPO_PUBLIC_RECONSTRUCTION_API_URL}/download/${jobId}?tipo=${tipo}`;
 
-    const result = await FileSystem.downloadAsync(url, localUri);
-    if (result.status !== 200) {
-      throw new Error(`La descarga falló con estado ${result.status}`);
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`La descarga falló con estado ${response.status}`);
     }
-    return result.uri;
+
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const dest = new File(Paths.cache, fileName);
+    dest.write(bytes);
+    return dest.uri;
   }
 }

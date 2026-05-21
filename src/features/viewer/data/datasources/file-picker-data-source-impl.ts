@@ -1,5 +1,4 @@
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
 import { FilePickerDataSource, PickedFile } from '@/features/viewer/data/datasources/file-picker-data-source';
 
 export class FilePickerDataSourceImpl implements FilePickerDataSource {
@@ -12,19 +11,7 @@ export class FilePickerDataSourceImpl implements FilePickerDataSource {
 
     const asset = result.assets[0];
     const fileName = asset.name ?? `cloud_${Date.now()}.ply`;
-    let fileUri = asset.uri;
-
-    // content:// URIs no soportan lectura por offset — copiar a caché primero
-    if (fileUri.startsWith('content://')) {
-      const cached = `${FileSystem.cacheDirectory}${fileName}`;
-      await FileSystem.copyAsync({ from: fileUri, to: cached });
-      fileUri = cached;
-    }
-
-    // Garantizar prefijo file:// para expo-file-system
-    if (!fileUri.startsWith('file://')) {
-      fileUri = `file://${fileUri}`;
-    }
+    const fileUri = asset.uri;
 
     return { fileUri, fileName };
   }

@@ -1,12 +1,5 @@
-/**
- * Parsea un archivo PLY binario en chunks, muestreando cada N-ésimo vértice
- * para mantenerse bajo maxPoints. Usa expo-file-system para lectura por offset
- * sin cargar el archivo completo en memoria (crítico para archivos >50MB).
- *
- * Solo soporta binary_little_endian. Propiedades: float/double/int/uint/short/ushort/uchar.
- */
 import { ParseResult, PlyStreamingParserDataSource } from '@/features/viewer/data/datasources/ply-streaming-parser-data-source';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 import * as THREE from 'three';
 
 const MAX_HEADER_BYTES = 8192;
@@ -77,85 +70,71 @@ function readFloat(view: DataView, offset: number, type: PropType): number {
   }
 }
 
-// FileSystemFile (new v55 API) has no partial-read support; keep the legacy function.
-const readRange: (
-  uri: string,
-  opts: { encoding: 'base64'; position: number; length: number },
-) => Promise<string> = FileSystem.readAsStringAsync as never;
-
 export class PlyStreamingParserDataSourceImpl implements PlyStreamingParserDataSource {
   async parse(fileUri: string, maxPoints: number): Promise<ParseResult> {
-    // 1. Leer encabezado
-    const headerB64 = await readRange(fileUri, {
-      encoding: 'base64',
-      position: 0,
-      length: MAX_HEADER_BYTES,
-    });
-    const headerRaw = atob(headerB64);
-    const { header } = parseHeader(headerRaw);
-    const { vertexCount, stride, dataOffset, props } = header;
+    const handle = new File(fileUri).open();
+    try {
+      // 1. Leer encabezado
+      const headerBytes = handle.readBytes(MAX_HEADER_BYTES);
+      const headerRaw = new TextDecoder().decode(headerBytes);
+      const { header } = parseHeader(headerRaw);
+      const { vertexCount, stride, dataOffset, props } = header;
 
-    // 2. Calcular paso de muestreo
-    const step = vertexCount <= maxPoints ? 1 : Math.ceil(vertexCount / maxPoints);
-    const outputCount = Math.ceil(vertexCount / step);
+      // 2. Calcular paso de muestreo
+      const step = vertexCount <= maxPoints ? 1 : Math.ceil(vertexCount / maxPoints);
+      const outputCount = Math.ceil(vertexCount / step);
 
-    // 3. Localizar propiedades necesarias
-    const xP = props.find(p => p.name === 'x');
-    const yP = props.find(p => p.name === 'y');
-    const zP = props.find(p => p.name === 'z');
-    const rP = props.find(p => p.name === 'red');
-    const gP = props.find(p => p.name === 'green');
-    const bP = props.find(p => p.name === 'blue');
+      // 3. Localizar propiedades necesarias
+      const xP = props.find(p => p.name === 'x');
+      const yP = props.find(p => p.name === 'y');
+      const zP = props.find(p => p.name === 'z');
+      const rP = props.find(p => p.name === 'red');
+      const gP = props.find(p => p.name === 'green');
+      const bP = props.find(p => p.name === 'blue');
 
-    if (!xP || !yP || !zP) { throw new Error('PLY: faltan propiedades x/y/z'); }
-    const hasColors = !!(rP && gP && bP);
+      if (!xP || !yP || !zP) { throw new Error('PLY: faltan propiedades x/y/z'); }
+      const hasColors = !!(rP && gP && bP);
 
-    const positions = new Float32Array(outputCount * 3);
-    const colors = hasColors ? new Float32Array(outputCount * 3) : null;
+      const positions = new Float32Array(outputCount * 3);
+      const colors = hasColors ? new Float32Array(outputCount * 3) : null;
 
-    // 4. Leer vértices en chunks
-    let outIdx = 0;
-    let vertexIdx = 0;
+      // 4. Leer vértices en chunks usando FileHandle con seek por offset
+      let outIdx = 0;
+      let vertexIdx = 0;
 
-    while (vertexIdx < vertexCount) {
-      const chunkVerts = Math.min(CHUNK_VERTICES, vertexCount - vertexIdx);
-      const readBytes = chunkVerts * stride;
-      const fileOffset = dataOffset + vertexIdx * stride;
+      while (vertexIdx < vertexCount) {
+        const chunkVerts = Math.min(CHUNK_VERTICES, vertexCount - vertexIdx);
+        handle.offset = dataOffset + vertexIdx * stride;
+        const chunkBytes = handle.readBytes(chunkVerts * stride);
+        const view = new DataView(chunkBytes.buffer, chunkBytes.byteOffset, chunkBytes.byteLength);
 
-      const chunkB64 = await readRange(fileUri, {
-        encoding: 'base64',
-        position: fileOffset,
-        length: readBytes,
-      });
-      const raw = atob(chunkB64);
-      const bytes = new Uint8Array(raw.length);
-      for (let i = 0; i < raw.length; i++) { bytes[i] = raw.charCodeAt(i); }
-      const view = new DataView(bytes.buffer);
-
-      for (let i = 0; i < chunkVerts; i++) {
-        if ((vertexIdx + i) % step === 0 && outIdx < outputCount) {
-          const base = i * stride;
-          positions[outIdx * 3 + 0] = readFloat(view, base + xP.offset, xP.type);
-          positions[outIdx * 3 + 1] = readFloat(view, base + yP.offset, yP.type);
-          positions[outIdx * 3 + 2] = readFloat(view, base + zP.offset, zP.type);
-          if (hasColors && colors && rP && gP && bP) {
-            colors[outIdx * 3 + 0] = view.getUint8(base + rP.offset) / 255;
-            colors[outIdx * 3 + 1] = view.getUint8(base + gP.offset) / 255;
-            colors[outIdx * 3 + 2] = view.getUint8(base + bP.offset) / 255;
+        for (let i = 0; i < chunkVerts; i++) {
+          if ((vertexIdx + i) % step === 0 && outIdx < outputCount) {
+            const base = i * stride;
+            positions[outIdx * 3 + 0] = readFloat(view, base + xP.offset, xP.type);
+            positions[outIdx * 3 + 1] = readFloat(view, base + yP.offset, yP.type);
+            positions[outIdx * 3 + 2] = readFloat(view, base + zP.offset, zP.type);
+            if (hasColors && colors && rP && gP && bP) {
+              colors[outIdx * 3 + 0] = view.getUint8(base + rP.offset) / 255;
+              colors[outIdx * 3 + 1] = view.getUint8(base + gP.offset) / 255;
+              colors[outIdx * 3 + 2] = view.getUint8(base + bP.offset) / 255;
+            }
+            outIdx++;
           }
-          outIdx++;
         }
+        vertexIdx += chunkVerts;
       }
-      vertexIdx += chunkVerts;
-    }
 
-    // 5. Construir BufferGeometry
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions.slice(0, outIdx * 3), 3));
-    if (hasColors && colors) {
-      geometry.setAttribute('color', new THREE.BufferAttribute(colors.slice(0, outIdx * 3), 3));
-    }
+      // 5. Construir BufferGeometry
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions.slice(0, outIdx * 3), 3));
+      if (hasColors && colors) {
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors.slice(0, outIdx * 3), 3));
+      }
 
-    return { geometry, vertexCount: outIdx, hasColors };
+      return { geometry, vertexCount: outIdx, hasColors };
+    } finally {
+      handle.close();
+    }
   }
 }
