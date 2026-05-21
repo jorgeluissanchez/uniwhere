@@ -4,10 +4,6 @@ import { TOKENS } from "@/core/constants/tokens";
 import { Container } from "@/core/di/container";
 import { AuthRemoteDataSourceImpl } from "@/features/auth/data/datasources/auth-remote-data-source-impl";
 import { AuthRepositoryImpl } from "@/features/auth/data/repositories/auth-repository-impl";
-import { CourseRemoteDataSourceImpl } from "@/features/courses/data/datasources/course-remote-data-source-impl";
-import { CourseRepositoryImpl } from "@/features/courses/data/repositories/course-repository-impl";
-import { EvaluationRemoteDataSourceImpl } from "@/features/evaluation/data/datasources/evaluation-remote-data-source-impl";
-import { EvaluationRepositoryImpl } from "@/features/evaluation/data/repositories/evaluation-repository-impl";
 
 const DIContext = createContext<Container | null>(null);
 
@@ -19,16 +15,6 @@ export function DIProvider({ children }: { children: React.ReactNode }) {
         const authRepo = new AuthRepositoryImpl(authDS);
         c.register(TOKENS.AuthRemoteDS, authDS)
             .register(TOKENS.AuthRepo, authRepo);
-
-        const courseDS = new CourseRemoteDataSourceImpl(authDS);
-        const courseRepo = new CourseRepositoryImpl(courseDS);
-        c.register(TOKENS.CourseRemoteDS, courseDS)
-            .register(TOKENS.CourseRepo, courseRepo);
-
-        const evaluationDS = new EvaluationRemoteDataSourceImpl(authDS);
-        const evaluationRepo = new EvaluationRepositoryImpl(evaluationDS);
-        c.register(TOKENS.EvaluationRemoteDS, evaluationDS)
-            .register(TOKENS.EvaluationRepo, evaluationRepo);
 
         return c;
     }, []);

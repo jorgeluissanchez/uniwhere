@@ -60,7 +60,7 @@ export default function StudentWelcomeScreen() {
             router.replace("/home" as RelativePathString)
           }
         >
-          <Text className="text-blue-600 text-lg font-semibold">
+          <Text>
             COMIENZA YA
           </Text>
         </Button>
