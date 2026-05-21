@@ -57,7 +57,7 @@ export default function StudentWelcomeScreen() {
           variant="ghost"
           className="h-16 mb-8 rounded-full w-full bg-white"
           onPress={() =>
-            router.replace("/home" as RelativePathString)
+            router.replace("/scan" as RelativePathString)
           }
         >
           <Text>

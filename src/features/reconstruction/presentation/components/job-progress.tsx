@@ -47,9 +47,9 @@ export function JobProgress({ job }: Props) {
       )}
 
       {job.progress.length > 0 && (
-        <ScrollView className="bg-black rounded-lg p-2.5 max-h-40" nestedScrollEnabled>
+        <ScrollView className="bg-gray-100 rounded-lg p-2.5 max-h-40" nestedScrollEnabled>
           {job.progress.map((line, i) => (
-            <Text key={i} className="text-xs text-gray-400 leading-5 font-mono">› {line}</Text>
+            <Text key={i} className="text-xs text-gray-600 leading-5 font-mono">› {line}</Text>
           ))}
         </ScrollView>
       )}

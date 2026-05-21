@@ -10,7 +10,7 @@ export default function Index() {
     return null;
   }
 
-  const href = (isLoggedIn ? '/home' : '/landing') as RelativePathString;
+  const href = (isLoggedIn ? '/scan' : '/landing') as RelativePathString;
 
   return <Redirect href={href} />;
 }

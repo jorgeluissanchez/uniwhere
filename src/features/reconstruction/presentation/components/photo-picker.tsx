@@ -44,7 +44,7 @@ export function PhotoPicker({ photos, onPhotosChange, disabled }: Props) {
   return (
     <View className="gap-2.5">
       <View className="flex-row items-center justify-between">
-        <Text variant="small" className="text-gray-400">Fotos ({photos.length}/100)</Text>
+        <Text variant="small" className="text-gray-600">Fotos ({photos.length}/100)</Text>
         {photos.length > 0 && (
           <Button variant="ghost" size="sm" onPress={() => onPhotosChange([])} disabled={disabled}>
             <Text className="text-destructive text-xs">Limpiar</Text>

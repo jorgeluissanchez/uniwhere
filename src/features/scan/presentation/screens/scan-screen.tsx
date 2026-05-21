@@ -66,11 +66,11 @@ export function ScanScreen() {
 
   if (showForm) {
     return (
-      <View className="flex-1 bg-[#0f0f1a]">
+      <View className="flex-1 bg-gray-50">
         <View className="flex-row items-center justify-between px-5 pt-10 pb-4">
-          <Text variant="h3" className="text-white">Nuevo escaneo</Text>
+          <Text variant="h3" className="text-gray-900">Nuevo escaneo</Text>
           <Button variant="ghost" size="icon" onPress={() => setShowForm(false)}>
-            <X size={20} color="white" />
+            <X size={20} color="#374151" />
           </Button>
         </View>
         <ScrollView className="flex-1" contentContainerClassName="px-5 pb-16 gap-5" keyboardShouldPersistTaps="handled">
@@ -81,9 +81,9 @@ export function ScanScreen() {
   }
 
   return (
-    <View className="flex-1 bg-[#0f0f1a]">
+    <View className="flex-1 bg-gray-50">
       <View className="px-5 pt-10 pb-4 flex-row items-center justify-between">
-        <Text variant="h3" className="text-white">Mis escaneos</Text>
+        <Text variant="h3" className="text-gray-900">Mis escaneos</Text>
         <Button size="sm" onPress={() => setShowForm(true)} className="flex-row gap-1.5">
           <Camera size={16} color="white" />
           <Text className="text-white text-sm">Nuevo</Text>
@@ -96,8 +96,8 @@ export function ScanScreen() {
         </View>
       ) : scans.length === 0 ? (
         <View className="flex-1 items-center justify-center gap-4 px-8">
-          <Camera size={48} color="#1E3A5F" />
-          <Text className="text-gray-500 text-center">
+          <Camera size={48} color="#BFDBFE" />
+          <Text className="text-gray-400 text-center">
             Aún no tienes escaneos.{'\n'}Toca "Nuevo" para comenzar.
           </Text>
         </View>

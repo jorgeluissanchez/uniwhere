@@ -18,17 +18,17 @@ export function ScanListItem({ scan, onDelete, onView, viewLoading = false }: Pr
   });
 
   return (
-    <View className="bg-blue-950/60 rounded-2xl px-4 py-3 gap-2 border border-blue-900">
+    <View className="bg-white rounded-2xl px-4 py-3 gap-2 border border-gray-200">
       <View className="flex-row items-center justify-between">
-        <Text className="text-white font-semibold text-base flex-1 mr-2" numberOfLines={1}>
+        <Text className="text-gray-900 font-semibold text-base flex-1 mr-2" numberOfLines={1}>
           {scan.serie}
         </Text>
-        <View className="bg-blue-500/20 border border-blue-500 rounded-full px-2.5 py-0.5">
-          <Text className="text-blue-400 text-xs">{scan.tipo}</Text>
+        <View className="bg-blue-50 border border-blue-300 rounded-full px-2.5 py-0.5">
+          <Text className="text-blue-600 text-xs">{scan.tipo}</Text>
         </View>
       </View>
 
-      <Text className="text-gray-500 text-xs">{date}</Text>
+      <Text className="text-gray-400 text-xs">{date}</Text>
 
       <View className="flex-row gap-2 mt-1">
         <Button

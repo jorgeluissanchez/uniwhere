@@ -46,7 +46,7 @@ export function ReconstructionForm({ onCloudReady }: Props) {
       <PhotoPicker photos={photos} onPhotosChange={setPhotos} disabled={busy || !!job} />
 
       <View className="flex-row items-center justify-between">
-        <Text className="text-gray-400 text-sm">Gaussian Splatting (infer_gs)</Text>
+        <Text className="text-gray-600 text-sm">Gaussian Splatting (infer_gs)</Text>
         <Switch
           value={inferGs}
           onValueChange={setInferGs}

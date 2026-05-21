@@ -53,7 +53,7 @@ export function SignupForm() {
     );
 
     if (created) {
-      router.replace("/home" as RelativePathString);
+      router.replace("/" as RelativePathString);
     }
   };
 

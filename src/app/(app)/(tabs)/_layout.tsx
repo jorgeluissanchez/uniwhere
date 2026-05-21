@@ -1,12 +1,12 @@
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Tabs, useSegments } from "expo-router";
-import { BarChart3, Camera, Home, User } from "lucide-react-native";
+import { Camera, User } from "lucide-react-native";
 import React from "react";
 import { useWindowDimensions, View } from "react-native";
 
 const PRIMARY = "#3B82F6";
 
-type LucideIcon = typeof Home;
+type LucideIcon = typeof Camera;
 
 function BottomIcon({ Icon, focused }: { Icon: LucideIcon; focused: boolean }) {
   return (
@@ -52,7 +52,6 @@ export default function TabsLayout() {
   const displayName = loggedUser?.name
     ? loggedUser.name.split(" ")[0]
     : (loggedUser?.email?.split("@")[0] ?? "Perfil");
-  const isAdmin = loggedUser?.role === "admin";
 
   return (
     <Tabs
@@ -107,39 +106,14 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="home"
-        options={{
-          title: "Inicio",
-          tabBarIcon: ({ focused }) =>
-            isSidebar ? (
-              <SidebarIcon Icon={Home} focused={focused} />
-            ) : (
-              <BottomIcon Icon={Home} focused={focused} />
-            ),
-        }}
-      />
-      <Tabs.Screen
         name="scan"
         options={{
-          title: "Escanear",
+          title: "Escaneos",
           tabBarIcon: ({ focused }) =>
             isSidebar ? (
               <SidebarIcon Icon={Camera} focused={focused} />
             ) : (
               <BottomIcon Icon={Camera} focused={focused} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="reports"
-        options={{
-          title: "Admin",
-          href: isAdmin ? undefined : null,
-          tabBarIcon: ({ focused }) =>
-            isSidebar ? (
-              <SidebarIcon Icon={BarChart3} focused={focused} />
-            ) : (
-              <BottomIcon Icon={BarChart3} focused={focused} />
             ),
         }}
       />
