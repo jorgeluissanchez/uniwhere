@@ -45,7 +45,7 @@ export function ScanScreen() {
   };
 
   const handleView = async (scan: Scan) => {
-    setViewingId(scan.scanId);
+    setViewingId(scan._id);
     try {
       await loadFromPath(scan.localUri);
       router.push('/viewer' as RelativePathString);
@@ -62,7 +62,7 @@ export function ScanScreen() {
       `¿Eliminar "${scan.serie}"? Esta acción no se puede deshacer.`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Eliminar', style: 'destructive', onPress: () => deleteScan(scan.scanId) },
+        { text: 'Eliminar', style: 'destructive', onPress: () => deleteScan(scan._id) },
       ]
     );
   };
@@ -92,11 +92,11 @@ export function ScanScreen() {
         <ScrollView className="flex-1" contentContainerClassName="px-5 pb-16 gap-3">
           {scans.map(scan => (
             <ScanListItem
-              key={scan.scanId}
+              key={scan._id}
               scan={scan}
               onDelete={() => handleDelete(scan)}
               onView={() => handleView(scan)}
-              viewLoading={viewingId === scan.scanId}
+              viewLoading={viewingId === scan._id}
             />
           ))}
         </ScrollView>

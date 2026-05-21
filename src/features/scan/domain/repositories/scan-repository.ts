@@ -1,6 +1,6 @@
 import { Scan } from '@/features/scan/domain/entities/scan';
 
-export type SaveScanParams = Omit<Scan, 'scanId' | 'createdAt'>;
+export type SaveScanParams = Omit<Scan, '_id' | 'createdAt'>;
 
 export interface ScanRepository {
   getScansByUser(userId: string): Promise<Scan[]>;

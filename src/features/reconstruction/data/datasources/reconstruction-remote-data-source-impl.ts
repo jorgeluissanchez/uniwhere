@@ -15,8 +15,16 @@ export class ReconstructionRemoteDataSourceImpl implements ReconstructionRemoteD
     const form = new FormData();
     form.append('serie', params.serie);
     if (params.inferGs) { form.append('infer_gs', 'true'); }
+
     for (const photo of params.photos) {
-      form.append('fotos', { uri: photo.uri, name: photo.name, type: photo.type } as any);
+      if (typeof document !== 'undefined') {
+        // Web: fetch the data/object URL and convert to a real File for FormData
+        const blob = await fetch(photo.uri).then(r => r.blob());
+        form.append('fotos', new File([blob], photo.name, { type: photo.type }));
+      } else {
+        // Android/iOS: React Native FormData accepts the {uri, name, type} object directly
+        form.append('fotos', { uri: photo.uri, name: photo.name, type: photo.type } as any);
+      }
     }
 
     const res = await fetch(`${this.baseUrl}/reconstruct`, { method: 'POST', body: form });

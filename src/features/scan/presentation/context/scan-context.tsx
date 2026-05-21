@@ -48,7 +48,7 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
 
   const deleteScan = useCallback(async (scanId: string) => {
     await repo.deleteScan(scanId);
-    setScans(prev => prev.filter(s => s.scanId !== scanId));
+    setScans(prev => prev.filter(s => s._id !== scanId));
   }, [repo]);
 
   return (

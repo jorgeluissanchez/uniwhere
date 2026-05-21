@@ -1,6 +1,7 @@
 import { LocalPreferencesAsyncStorage } from '@/core/storage/local-preferences-async-storage';
 import { Scan } from '@/features/scan/domain/entities/scan';
 import { ScanRemoteDataSource } from '@/features/scan/data/datasources/scan-remote-data-source';
+import { SaveScanParams } from '@/features/scan/domain/repositories/scan-repository';
 
 export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
   private readonly dbUrl: string;
@@ -27,7 +28,7 @@ export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
     const rows = await res.json().catch(() => []);
     if (!Array.isArray(rows)) return [];
     return rows.map((r: any) => ({
-      scanId:    r._id,
+      _id:       r._id,
       userId:    r.user_id,
       jobId:     r.job_id,
       serie:     r.serie,
@@ -37,7 +38,7 @@ export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
     }));
   }
 
-  async saveScan(scan: Scan): Promise<void> {
+  async saveScan(params: SaveScanParams): Promise<void> {
     const token = await this.token();
     const res = await fetch(`${this.dbUrl}/insert`, {
       method: 'POST',
@@ -45,12 +46,11 @@ export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
       body: JSON.stringify({
         tableName: 'scan',
         records: [{
-          user_id:    scan.userId,
-          job_id:     scan.jobId,
-          serie:      scan.serie,
-          tipo:       scan.tipo,
-          local_uri:  scan.localUri,
-          created_at: scan.createdAt,
+          user_id:   params.userId,
+          job_id:    params.jobId,
+          serie:     params.serie,
+          tipo:      params.tipo,
+          local_uri: params.localUri,
         }],
       }),
     });
@@ -63,9 +63,9 @@ export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
   async deleteScan(scanId: string): Promise<void> {
     const token = await this.token();
     await fetch(`${this.dbUrl}/delete`, {
-      method: 'POST',
+      method: 'DELETE',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ tableName: 'scan', filter: { _id: scanId } }),
+      body: JSON.stringify({ tableName: 'scan', idColumn: '_id', idValue: scanId }),
     });
   }
 }

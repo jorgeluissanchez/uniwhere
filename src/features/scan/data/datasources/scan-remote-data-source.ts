@@ -3,6 +3,6 @@ import { SaveScanParams } from '@/features/scan/domain/repositories/scan-reposit
 
 export interface ScanRemoteDataSource {
   getScansByUser(userId: string): Promise<Scan[]>;
-  saveScan(scan: Scan): Promise<void>;
+  saveScan(params: SaveScanParams): Promise<void>;
   deleteScan(scanId: string): Promise<void>;
 }

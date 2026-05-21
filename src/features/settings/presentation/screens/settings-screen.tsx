@@ -48,7 +48,7 @@ export default function SettingsScreen() {
         <View className="flex-row items-center justify-between">
           <Button
             variant="ghost"
-            onPress={() => router.replace("/home" as RelativePathString)}
+            onPress={() => router.replace("/" as RelativePathString)}
             className="rounded-full w-12 h-12 items-center justify-center bg-blue-800"
           >
             <XIcon size={20} color="white" />

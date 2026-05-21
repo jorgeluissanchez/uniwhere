@@ -1,7 +1,6 @@
-import * as FileSystem from 'expo-file-system';
-import { Scan } from '@/features/scan/domain/entities/scan';
-import { ScanRepository, SaveScanParams } from '@/features/scan/domain/repositories/scan-repository';
 import { ScanRemoteDataSource } from '@/features/scan/data/datasources/scan-remote-data-source';
+import { Scan } from '@/features/scan/domain/entities/scan';
+import { SaveScanParams, ScanRepository } from '@/features/scan/domain/repositories/scan-repository';
 
 export class ScanRepositoryImpl implements ScanRepository {
   constructor(private readonly remoteDS: ScanRemoteDataSource) {}
@@ -11,12 +10,7 @@ export class ScanRepositoryImpl implements ScanRepository {
   }
 
   async saveScan(params: SaveScanParams): Promise<void> {
-    const scan: Scan = {
-      ...params,
-      scanId:    crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-    };
-    return this.remoteDS.saveScan(scan);
+    return this.remoteDS.saveScan(params);
   }
 
   async deleteScan(scanId: string): Promise<void> {

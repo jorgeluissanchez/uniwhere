@@ -1,5 +1,5 @@
 export type Scan = {
-  scanId: string;
+  _id: string;
   userId: string;
   jobId: string;
   serie: string;
