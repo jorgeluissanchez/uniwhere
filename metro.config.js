@@ -4,9 +4,8 @@ const { withNativeWind } = require('nativewind/metro');
 
 const config = getDefaultConfig(__dirname);
 
-// MSW: required for React Native support
 config.resolver.unstable_enablePackageExports = true;
-config.resolver.unstable_conditionNames = ["browser", "require", "default"];
+config.resolver.unstable_conditionNames = ["react-native", "require", "default"];
 
 // Force a single Three.js instance — r3f and our parser both import it
 config.resolver.extraNodeModules = {
