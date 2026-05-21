@@ -27,13 +27,17 @@ export function ScanScreen() {
     serie: string,
   ) => {
     if (jobId && serie && loggedUser) {
-      await saveScan({
-        userId:   loggedUser.userId,
-        jobId,
-        serie,
-        tipo,
-        localUri: fileUri,
-      });
+      try {
+        await saveScan({
+          userId:   loggedUser.userId,
+          jobId,
+          serie,
+          tipo,
+          localUri: fileUri,
+        });
+      } catch (e) {
+        Alert.alert('Error al guardar', e instanceof Error ? e.message : 'No se pudo guardar el escaneo');
+      }
     }
     await loadFromPath(fileUri);
     setShowForm(false);

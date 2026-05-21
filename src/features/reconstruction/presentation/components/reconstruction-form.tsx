@@ -8,7 +8,7 @@ import { PhotoPicker, PickedPhoto } from '@/features/reconstruction/presentation
 import { SerieInput } from '@/features/reconstruction/presentation/components/serie-input';
 
 interface Props {
-  onCloudReady: (fileUri: string, tipo: 'dense' | 'splat') => void;
+  onCloudReady: (fileUri: string, tipo: 'dense' | 'splat') => Promise<void> | void;
 }
 
 export function ReconstructionForm({ onCloudReady }: Props) {
@@ -26,9 +26,9 @@ export function ReconstructionForm({ onCloudReady }: Props) {
   const handleDownloadAndView = async (tipo: 'dense' | 'splat' = 'dense') => {
     try {
       const fileUri = await downloadPly(tipo);
-      onCloudReady(fileUri, tipo);
+      await onCloudReady(fileUri, tipo);
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Error al descargar');
+      Alert.alert('Error', e instanceof Error ? e.message : 'Error al descargar o guardar');
     }
   };
 

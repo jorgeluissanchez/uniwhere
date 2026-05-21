@@ -39,7 +39,7 @@ export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
 
   async saveScan(scan: Scan): Promise<void> {
     const token = await this.token();
-    await fetch(`${this.dbUrl}/insert`, {
+    const res = await fetch(`${this.dbUrl}/insert`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -55,6 +55,10 @@ export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
         }],
       }),
     });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      throw new Error(detail?.detail ?? `Error al guardar el escaneo (HTTP ${res.status})`);
+    }
   }
 
   async deleteScan(scanId: string): Promise<void> {
