@@ -7,7 +7,7 @@ const config = getDefaultConfig(__dirname);
 config.resolver.unstable_enablePackageExports = true;
 config.resolver.unstable_conditionNames = ["react-native", "require", "default"];
 
-const THREE_MAIN = path.resolve(__dirname, 'node_modules/three/build/three.cjs');
+const THREE_MAIN = path.resolve(__dirname, 'three-shim.js');
 
 const nativeWindConfig = withNativeWind(config, { input: './src/global.css', inlineRem: 16 });
 
