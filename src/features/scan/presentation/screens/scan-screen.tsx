@@ -1,5 +1,16 @@
 import { Button } from '@/core/components/ui/button';
 import { Text } from '@/core/components/ui/text';
+import { Drawer, DrawerContent, DrawerTitle } from '@/core/components/ui/drawer';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/core/components/ui/alert-dialog';
 import { Scan } from '@/features/scan/domain/entities/scan';
 import { useScan } from '@/features/scan/presentation/context/scan-context';
 import { NewScanDrawer } from '@/features/scan/presentation/components/new-scan-drawer';
@@ -9,7 +20,7 @@ import { Camera, Plus } from 'lucide-react-native';
 import { File, Paths } from 'expo-file-system';
 import { RelativePathString, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 export function ScanScreen() {
   const router = useRouter();
@@ -19,10 +30,13 @@ export function ScanScreen() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleViewModel = async () => {
     if (!selectedScan) return;
     setViewLoading(true);
+    setActionError(null);
     try {
       let uri = selectedScan.localUri;
 
@@ -42,33 +56,27 @@ export function ScanScreen() {
       await loadFromPath(uri);
       router.push('/viewer' as RelativePathString);
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo cargar el modelo');
+      setActionError(e instanceof Error ? e.message : 'No se pudo cargar el modelo');
     } finally {
       setViewLoading(false);
     }
   };
 
-  const handleDelete = () => {
+  const handleDeleteConfirm = async () => {
     if (!selectedScan) return;
-    Alert.alert(
-      'Eliminar escaneo',
-      `¿Eliminar "${selectedScan.serie}"? Esta acción no se puede deshacer.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteScan(selectedScan._id);
-              setSelectedScan(null);
-            } catch (e) {
-              Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo eliminar el escaneo');
-            }
-          },
-        },
-      ],
-    );
+    try {
+      await deleteScan(selectedScan._id);
+      setShowDeleteDialog(false);
+      setSelectedScan(null);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'No se pudo eliminar el escaneo');
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const handleSelectScan = (scan: Scan) => {
+    setActionError(null);
+    setSelectedScan(scan);
   };
 
   return (
@@ -94,7 +102,7 @@ export function ScanScreen() {
             <ScanListItem
               key={scan._id}
               scan={scan}
-              onPress={() => setSelectedScan(scan)}
+              onPress={() => handleSelectScan(scan)}
             />
           ))}
         </ScrollView>
@@ -113,49 +121,77 @@ export function ScanScreen() {
       {/* New scan drawer */}
       <NewScanDrawer open={showDrawer} onClose={() => setShowDrawer(false)} />
 
-      {/* Scan options modal */}
-      <Modal
-        visible={!!selectedScan}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setSelectedScan(null)}
+      {/* Scan options drawer */}
+      <Drawer
+        open={!!selectedScan && !showDeleteDialog}
+        onOpenChange={(o) => { if (!o && !viewLoading) setSelectedScan(null); }}
       >
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}
-          onPress={() => !viewLoading && setSelectedScan(null)}
-        >
-          <Pressable>
-            <View className="bg-white rounded-t-3xl px-6 pt-5 pb-10 gap-3">
-              <View className="w-10 h-1 bg-gray-200 rounded-full self-center mb-1" />
+        <DrawerContent side="bottom" className="px-6 pt-5 pb-10 gap-3">
+          <DrawerTitle style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 }}>
+            Opciones de escaneo
+          </DrawerTitle>
 
-              <View className="mb-1">
-                <Text variant="h4" className="text-gray-900">{selectedScan?.serie}</Text>
-                <Text className="text-gray-400 text-sm mt-0.5">
-                  {selectedScan?.tipo?.toUpperCase()}
-                  {selectedScan?.createdAt
-                    ? ` · ${new Date(selectedScan.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}`
-                    : ''}
-                </Text>
-              </View>
+          <View className="w-10 h-1 bg-gray-200 rounded-full self-center mb-1" />
 
-              <Button onPress={handleViewModel} disabled={viewLoading}>
-                {viewLoading
-                  ? <ActivityIndicator size="small" color="white" />
-                  : <Text className="text-white">Ver modelo</Text>
-                }
-              </Button>
+          <View className="mb-1">
+            <Text variant="h4" className="text-gray-900">{selectedScan?.serie}</Text>
+            <Text className="text-gray-400 text-sm mt-0.5">
+              {selectedScan?.tipo?.toUpperCase()}
+              {selectedScan?.createdAt
+                ? ` · ${new Date(selectedScan.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                : ''}
+            </Text>
+          </View>
 
-              <Button variant="secondary" disabled>
-                <Text className="text-gray-400">Probar VPS</Text>
-              </Button>
-
-              <Button variant="ghost" onPress={handleDelete} disabled={viewLoading}>
-                <Text className="text-destructive text-sm">Eliminar</Text>
-              </Button>
+          {!!actionError && (
+            <View className="rounded-xl bg-destructive/10 border border-destructive/30 px-3 py-2">
+              <Text className="text-destructive text-sm">{actionError}</Text>
             </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+          )}
+
+          <Button onPress={handleViewModel} disabled={viewLoading}>
+            {viewLoading
+              ? <ActivityIndicator size="small" color="white" />
+              : <Text className="text-white">Ver modelo</Text>
+            }
+          </Button>
+
+          <Button variant="secondary" disabled>
+            <Text className="text-gray-400">Probar VPS</Text>
+          </Button>
+
+          <Button
+            variant="ghost"
+            onPress={() => setShowDeleteDialog(true)}
+            disabled={viewLoading}
+          >
+            <Text className="text-destructive text-sm">Eliminar</Text>
+          </Button>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar escaneo</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Eliminar "{selectedScan?.serie}"? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onPress={() => setShowDeleteDialog(false)}>
+              <Text>Cancelar</Text>
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive"
+              onPress={handleDeleteConfirm}
+            >
+              <Text className="text-white">Eliminar</Text>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </View>
   );
 }
