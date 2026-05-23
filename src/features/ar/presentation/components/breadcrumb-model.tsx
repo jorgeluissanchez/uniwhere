@@ -1,13 +1,26 @@
 // src/features/ar/presentation/components/breadcrumb-model.tsx
 import React, { useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { useFrame } from '@react-three/fiber/native';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import { Asset } from 'expo-asset';
+import Constants from 'expo-constants';
 
 interface Props {
   position: [number, number, number];
   index: number;
+}
+
+// Build the GLB URL.
+// expo-asset.downloadAsync() generates ?unstable_path= URLs that Metro 0.83 returns 404 on.
+// Metro DOES serve assets at /assets/<relativePath> — use that directly.
+function getGLBUrl(): string {
+  if (Platform.OS === 'web') {
+    return '/assets/3d_objects/Baguette.glb';
+  }
+  // Constants.expoConfig.hostUri = "10.10.x.x:PORT" (the Metro dev server)
+  const host = (Constants.expoConfig as any)?.hostUri ?? '10.0.2.2:8083';
+  return `http://${host}/assets/assets/3d_objects/Baguette.glb`;
 }
 
 export function BreadcrumbModel({ position, index }: Props) {
@@ -19,24 +32,23 @@ export function BreadcrumbModel({ position, index }: Props) {
 
     async function load() {
       try {
-        // expo-asset resolves the bundled GLB to a local URI on device
-        const asset = Asset.fromModule(require('../../../../../assets/3d_objects/Baguette.glb'));
-        await asset.downloadAsync();
-        if (cancelled || !asset.localUri) return;
+        const url = getGLBUrl();
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status} fetching GLB`);
+        const buffer = await res.arrayBuffer();
+        if (cancelled) return;
 
         const loader = new GLTFLoader();
-        loader.load(
-          asset.localUri,
+        loader.parse(
+          buffer,
+          '',
           (gltf) => {
-            if (!cancelled) {
-              setScene(gltf.scene.clone(true));
-            }
+            if (!cancelled) setScene(gltf.scene.clone(true));
           },
-          undefined,
-          (err) => console.error('[BreadcrumbModel] GLB load error:', err),
+          (err) => console.error('[BreadcrumbModel] GLB parse error:', err),
         );
       } catch (err) {
-        console.error('[BreadcrumbModel] Asset error:', err);
+        console.error('[BreadcrumbModel] Load error:', err);
       }
     }
 
