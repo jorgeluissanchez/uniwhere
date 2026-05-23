@@ -1,6 +1,6 @@
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Tabs, useSegments } from "expo-router";
-import { Camera, User } from "lucide-react-native";
+import { Camera, Cpu, User } from "lucide-react-native";
 import React from "react";
 import { useWindowDimensions, View } from "react-native";
 
@@ -114,6 +114,18 @@ export default function TabsLayout() {
               <SidebarIcon Icon={Camera} focused={focused} />
             ) : (
               <BottomIcon Icon={Camera} focused={focused} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="demo"
+        options={{
+          title: 'AR Demo',
+          tabBarIcon: ({ focused }) =>
+            isSidebar ? (
+              <SidebarIcon Icon={Cpu} focused={focused} />
+            ) : (
+              <BottomIcon Icon={Cpu} focused={focused} />
             ),
         }}
       />
