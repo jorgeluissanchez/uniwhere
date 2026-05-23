@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Canvas } from '@react-three/fiber/native';
+import useControls from 'r3f-native-orbitcontrols';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { Button } from '@/core/components/ui/button';
@@ -11,15 +12,41 @@ import { BreadcrumbModel } from '@/features/ar/presentation/components/breadcrum
 import { useARRoute } from '@/features/ar/presentation/context/ar-route-context';
 import { gridToWorld } from '@/features/ar/utils/grid-to-world';
 
+// Separate component so useControls() always runs (Rules of Hooks — no conditionals above it)
+function ARCanvas({ savedRoute }: { savedRoute: NonNullable<ReturnType<typeof useARRoute>['savedRoute']> }) {
+  const [OrbitControls, events] = useControls();
+
+  return (
+    // events spread on the wrapping View lets OrbitControls capture touch gestures
+    <View style={StyleSheet.absoluteFill} {...events}>
+      <Canvas
+        style={StyleSheet.absoluteFill}
+        gl={{ alpha: true }}
+        camera={{ position: [0, 0, 1.5], fov: 70 }}
+      >
+        <OrbitControls />
+        <ambientLight intensity={1.2} />
+        <directionalLight position={[2, 4, 3]} intensity={1.0} />
+
+        {savedRoute.map((point, i) => (
+          <BreadcrumbModel
+            key={`${point.row}-${point.col}-${i}`}
+            position={gridToWorld(point)}
+            index={i}
+          />
+        ))}
+      </Canvas>
+    </View>
+  );
+}
+
 export function ARRouteScreen() {
   const { savedRoute, loadSavedRoute } = useARRoute();
   const [permission, requestPermission] = useCameraPermissions();
   const router = useRouter();
 
-  // Re-read from storage each time this screen opens so it reflects the latest save
   useEffect(() => { loadSavedRoute(); }, []);
 
-  // Waiting for permission status to resolve
   if (!permission) {
     return (
       <View style={styles.center}>
@@ -28,7 +55,6 @@ export function ARRouteScreen() {
     );
   }
 
-  // Permission denied
   if (!permission.granted) {
     return (
       <View style={styles.center}>
@@ -45,7 +71,6 @@ export function ARRouteScreen() {
     );
   }
 
-  // No route saved yet
   if (!savedRoute || savedRoute.length === 0) {
     return (
       <View style={styles.center}>
@@ -61,30 +86,11 @@ export function ARRouteScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Camera feed — the "real world" background */}
+      {/* Camera feed — real-world background */}
       <CameraView style={StyleSheet.absoluteFill} facing="back" />
 
-      {/*
-        Three.js canvas with alpha:true so the WebGL surface is transparent.
-        This makes the camera feed show through wherever there are no 3D objects.
-        The camera is fixed at origin looking down -Z, matching gridToWorld's coordinate system.
-      */}
-      <Canvas
-        style={StyleSheet.absoluteFill}
-        gl={{ alpha: true }}
-        camera={{ position: [0, 0, 0], fov: 70 }}
-      >
-        <ambientLight intensity={1.2} />
-        <directionalLight position={[2, 4, 3]} intensity={1.0} />
-
-        {savedRoute.map((point, i) => (
-          <BreadcrumbModel
-            key={`${point.row}-${point.col}-${i}`}
-            position={gridToWorld(point)}
-            index={i}
-          />
-        ))}
-      </Canvas>
+      {/* R3F canvas with orbit controls overlaid on camera */}
+      <ARCanvas savedRoute={savedRoute} />
 
       {/* Back button */}
       <View style={styles.backButton}>
