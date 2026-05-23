@@ -64,7 +64,7 @@ export function BreadcrumbModel({ position, index }: Props) {
   });
 
   return (
-    <group ref={groupRef} position={position} scale={[0.12, 0.12, 0.12]}>
+    <group ref={groupRef} position={position} scale={[0.24, 0.24, 0.24]}>
       {scene ? (
         <primitive object={scene} />
       ) : (
