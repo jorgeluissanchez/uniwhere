@@ -4,6 +4,13 @@ const { withNativeWind } = require('nativewind/metro');
 
 const config = getDefaultConfig(__dirname);
 
+// Allow importing .glb / .gltf binary assets via require()
+config.resolver.assetExts = [
+  ...(config.resolver.assetExts ?? []),
+  'glb',
+  'gltf',
+];
+
 config.resolver.unstable_enablePackageExports = true;
 config.resolver.unstable_conditionNames = ["react-native", "require", "default"];
 
