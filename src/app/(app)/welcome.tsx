@@ -1,16 +1,11 @@
 import { Button } from "@/core/components/ui/button";
 import { Text } from "@/core/components/ui/text";
-
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
-
 import { RelativePathString, useRouter } from "expo-router";
-
 import React, { useMemo } from "react";
-
 import { Dimensions, View } from "react-native";
-
 import { SvgXml } from "react-native-svg";
-
+import { LAYERED_WAVES_SVG } from "../../../assets/svgs/layeredWaves";
 import { UNDRAW_RIGHT_DIRECTION_SVG } from "../../../assets/svgs/undrawRightDirection";
 
 export default function StudentWelcomeScreen() {
@@ -29,7 +24,12 @@ export default function StudentWelcomeScreen() {
   }, [loggedUser]);
 
   return (
-    <View className="flex-1 bg-blue-500">
+    <View className="flex-1 bg-blue-500 overflow-hidden">
+      <View pointerEvents="none" className="absolute inset-0">
+        <View className="absolute top-0 left-0">
+          <SvgXml xml={LAYERED_WAVES_SVG} width={width} height={160} preserveAspectRatio="xMidYMin slice" />
+        </View>
+      </View>
       <View className="flex-1 w-full max-w-lg self-center px-6 pt-10 pb-8 justify-between">
         <Text className="text-lg text-center text-white font-bold">UniWhere</Text>
 

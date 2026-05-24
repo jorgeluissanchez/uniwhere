@@ -1,11 +1,12 @@
 import { CURIOUS_CUATE_SVG } from "@/assets/svgs/curiousCuate";
+import { LOW_POLY_GRID_SVG } from "@/assets/svgs/lowPolyGrid";
 import { Button } from "@/core/components/ui/button";
 import { Text } from "@/core/components/ui/text";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { RelativePathString, useRouter } from "expo-router";
 import { LogOutIcon, XIcon } from "lucide-react-native";
 import React from "react";
-import { View } from "react-native";
+import { Dimensions, View } from "react-native";
 import { SvgXml } from "react-native-svg";
 
 function capitalizeLikeWelcome(name: string): string {
@@ -20,6 +21,7 @@ function capitalizeLikeWelcome(name: string): string {
 export default function SettingsScreen() {
   const { loggedUser, logout } = useAuth();
   const router = useRouter();
+  const { width, height } = Dimensions.get("window");
 
   const isAdmin = loggedUser?.role === "admin";
   const greeting = isAdmin ? "Panel de Administrador" : "Mi Perfil";
@@ -29,6 +31,9 @@ export default function SettingsScreen() {
 
   return (
     <View className="flex-1 overflow-hidden bg-blue-900">
+      <View pointerEvents="none" className="absolute inset-0">
+        <SvgXml xml={LOW_POLY_GRID_SVG} width={width} height={height} preserveAspectRatio="xMidYMid slice" />
+      </View>
 
       <View className="px-5 pt-10">
         <View className="flex-row items-center justify-between">
