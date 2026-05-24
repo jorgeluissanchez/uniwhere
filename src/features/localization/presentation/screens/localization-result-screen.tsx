@@ -50,10 +50,22 @@ export function LocalizationResultScreen() {
 
       {/* Coordinate HUD */}
       {result && (
-        <View className="absolute bottom-8 left-5 right-5 bg-black/60 rounded-2xl px-4 py-3">
-          <Text className="text-white text-xs text-center font-mono">
-            {`X: ${result.x.toFixed(3)}  Y: ${result.y.toFixed(3)}  Z: ${result.z.toFixed(3)}`}
-          </Text>
+        <View className="absolute bottom-8 left-5 right-5 gap-2">
+          {!result.success && (
+            <View className="bg-yellow-500/80 rounded-2xl px-4 py-2">
+              <Text className="text-white text-xs text-center">
+                Pose poco confiable ({result.inlier_count} inliers). Intenta con otra foto.
+              </Text>
+            </View>
+          )}
+          <View className="bg-black/60 rounded-2xl px-4 py-3">
+            <Text className="text-white text-xs text-center font-mono">
+              {`X: ${result.x.toFixed(3)}  Y: ${result.y.toFixed(3)}  Z: ${result.z.toFixed(3)}`}
+            </Text>
+            <Text className="text-gray-400 text-xs text-center mt-1">
+              {`${result.inlier_count} inliers · ${result.success ? 'confiable' : 'baja confianza'}`}
+            </Text>
+          </View>
         </View>
       )}
     </View>
