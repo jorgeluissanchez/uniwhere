@@ -10,7 +10,9 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "reusables:add": "pnpm dlx @react-native-reusables/cli@latest add --path src/core/components/ui --styling-library nativewind",
-    "reusables:add:all": "pnpm dlx @react-native-reusables/cli@latest add --all --overwrite --path src/core/components/ui --styling-library nativewind"
+    "reusables:add:all": "pnpm dlx @react-native-reusables/cli@latest add --all --overwrite --path src/core/components/ui --styling-library nativewind",
+    "test": "jest",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@expo-google-fonts/abeezee": "^0.4.1",
@@ -60,6 +62,7 @@
     "expo-glass-effect": "~55.0.11",
     "expo-image": "~55.0.10",
     "expo-image-picker": "^55.0.20",
+    "expo-linear-gradient": "^56.0.4",
     "expo-linking": "~55.0.15",
     "expo-router": "~55.0.15",
     "expo-sharing": "~55.0.19",
@@ -87,9 +90,15 @@
     "three": "^0.184.0"
   },
   "devDependencies": {
+    "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.2.2",
     "@types/three": "^0.184.1",
     "babel-preset-expo": "^55.0.18",
+    "jest": "^30.4.2",
+    "jest-expo": "^56.0.4",
+    "msw": "^2.14.6",
     "prettier-plugin-tailwindcss": "^0.5.14",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.2"

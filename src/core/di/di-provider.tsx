@@ -24,7 +24,12 @@ import { LocalizationRepositoryImpl } from "@/features/localization/data/reposit
 
 const DIContext = createContext<Container | null>(null);
 
-export function DIProvider({ children }: { children: React.ReactNode }) {
+type DIProviderProps = {
+    children: React.ReactNode;
+    overrides?: Map<symbol, unknown>;
+};
+
+export function DIProvider({ children, overrides }: DIProviderProps) {
     const container = useMemo(() => {
         const c = new Container();
 
@@ -66,8 +71,11 @@ export function DIProvider({ children }: { children: React.ReactNode }) {
         c.register(TOKENS.Localization_RemoteDS, localizationRemoteDS)
          .register(TOKENS.Localization_Repo, localizationRepo);
 
+        // Apply test overrides last so they win over real implementations
+        overrides?.forEach((value, token) => c.register(token, value));
+
         return c;
-    }, []);
+    }, [overrides]);
 
     return <DIContext.Provider value={container}>{children}</DIContext.Provider>;
 }

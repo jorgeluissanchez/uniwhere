@@ -4,6 +4,13 @@ const { withNativeWind } = require('nativewind/metro');
 
 const config = getDefaultConfig(__dirname);
 
+// Exclude generated native project dirs from Metro's watcher to prevent
+// crashes when Gradle writes files during a build.
+config.resolver.blockList = [
+  new RegExp(`^${path.resolve(__dirname, 'android')}/.*`),
+  new RegExp(`^${path.resolve(__dirname, 'ios')}/.*`),
+];
+
 // Allow importing .glb / .gltf binary assets via require()
 config.resolver.assetExts = [
   ...(config.resolver.assetExts ?? []),
