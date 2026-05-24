@@ -34,6 +34,8 @@ UniWhere is an Expo SDK 55 / React Native 0.83 app using Clean Architecture + Fe
 **Native module mocks:**
 - `@react-native-async-storage/async-storage/jest/async-storage-mock` (official)
 - `expo-file-system`, `expo-document-picker`, `expo-image-picker`, `expo-constants` — mocked via `jest.mock` in `native-mocks.ts`
+- `expo-router` — mocked in `native-mocks.ts`: `jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }), useLocalSearchParams: () => ({}) }))`
+- `three` (`THREE.BufferGeometry`, `THREE.Box3`, `THREE.Vector3`) — mocked globally for all test types (unit, context, widget) since most feature code transitively imports Three.js
 - `jest-expo` stubs remaining Expo modules automatically
 
 ---
@@ -48,8 +50,8 @@ __tests__/
     handlers/
       auth.handlers.ts         # Roble auth endpoints
       scan.handlers.ts         # Roble DB read/insert/update/delete for scans
-      reconstruction.handlers.ts  # /reconstruct, /status/:jobId, /:serie/portada
-      localization.handlers.ts    # /:serie/localize
+      reconstruction.handlers.ts  # /reconstruct, /status/:jobId, /:serie/portada — asserts ngrok-skip-browser-warning: 1 header
+      localization.handlers.ts    # /:serie/localize — asserts ngrok-skip-browser-warning: 1 header
     native-mocks.ts            # global jest.mock for native modules
 
   unit/
@@ -186,7 +188,7 @@ Isolated tests for pure logic. Dependencies mocked with `jest.mock`.
 - Serie is in URL path, not in FormData body
 - Response `translation[0..2]` maps to `{x, y, z}`
 - 404 throws "No hay modelo ACE entrenado para esta serie"
-- 422 throws "La imagen no es válida o no pudo procesarse"
+- 422 throws `"La imagen no es válida o el nombre de serie contiene caracteres no permitidos."`
 - Request is aborted after 30s via AbortController
 
 **`localization-repository-impl.test.ts`**
@@ -212,14 +214,15 @@ Isolated tests for pure logic. Dependencies mocked with `jest.mock`.
 
 Mount the real provider with mocked repositories injected via DI. Verify state transitions.
 
-> **DI override requirement:** `DIProvider` needs an optional `overrides?: Partial<Container>` prop added for test use. Production behavior unchanged when omitted.
+> **DI override requirement:** `DIProvider` needs an optional `overrides?: Map<symbol, unknown>` prop added for test use. After normal wiring in `useMemo`, iterate the map and call `c.register(token, value)` for each entry — this overwrites specific tokens while keeping all others wired normally. Production behavior unchanged when prop is omitted.
 
 ### Pattern
 
 ```tsx
-const mockAuthRepo = { login: jest.fn(), logout: jest.fn(), getCurrentUser: jest.fn() };
+const mockAuthRepo = { login: jest.fn(), logout: jest.fn(), getCurrentUser: jest.fn(), refreshUserProfile: jest.fn() };
+const overrides = new Map<symbol, unknown>([[TOKENS.AuthRepo, mockAuthRepo]]);
 const wrapper = ({ children }) => (
-  <DIProvider overrides={{ [TOKENS.AuthRepo]: mockAuthRepo }}>
+  <DIProvider overrides={overrides}>
     <AuthProvider>{children}</AuthProvider>
   </DIProvider>
 );
@@ -229,10 +232,10 @@ const { result } = renderHook(() => useAuth(), { wrapper });
 ### Per-context cases
 
 **`auth-context.test.tsx`**
-- `login()` success → `user` populated, `error` null
-- `login()` failure → `error` set, `user` null
-- `logout()` → `user` null
-- `restoreSession()` → calls `getCurrentUser()`, sets `user`
+- `login()` success → `loggedUser` populated, `isLoggedIn` true, `error` null
+- `login()` failure → `error` set, `loggedUser` null
+- `logout()` → `loggedUser` null, `isLoggedIn` false
+- On mount (useEffect) → calls `getCurrentUser()`; if `user.name` is missing also calls `refreshUserProfile()`; sets `loggedUser`
 
 **`scan-context.test.tsx`**
 - `refresh()` → `scans` loaded, `portadas` populated
@@ -344,7 +347,7 @@ afterAll(() => server.close());
 **`localization-flow.test.tsx`**
 - `submit()` → POST `/{serie}/localize` → `result.x/y/z` from `translation[0..2]`
 - 404 response → error message "No hay modelo ACE entrenado para esta serie"
-- 422 response → error message "La imagen no es válida"
+- 422 response → error message `"La imagen no es válida o el nombre de serie contiene caracteres no permitidos."`
 - AbortController cancels request after 30s
 
 **`ar-route-flow.test.ts`**
@@ -358,7 +361,7 @@ afterAll(() => server.close());
 ```js
 module.exports = {
   preset: 'jest-expo',
-  setupFilesAfterFramework: ['<rootDir>/__tests__/setup/jest.setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/__tests__/setup/jest.setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
