@@ -15,4 +15,7 @@ export const TOKENS = {
   // ar
   AR_RouteStorageDS: Symbol("AR_RouteStorageDS"),
   AR_RouteRepo:      Symbol("AR_RouteRepo"),
+  // localization
+  Localization_RemoteDS: Symbol("Localization_RemoteDS"),
+  Localization_Repo:     Symbol("Localization_Repo"),
 } as const;
