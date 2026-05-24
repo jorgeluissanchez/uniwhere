@@ -16,6 +16,12 @@ import { ReconstructionRepositoryImpl } from "@/features/reconstruction/data/rep
 import { ScanRemoteDataSourceImpl } from "@/features/scan/data/datasources/scan-remote-data-source-impl";
 import { ScanRepositoryImpl } from "@/features/scan/data/repositories/scan-repository-impl";
 
+import { RouteStorageDataSourceImpl } from "@/features/ar/data/datasources/route-storage-data-source-impl";
+import { RouteRepositoryImpl } from "@/features/ar/data/repositories/route-repository-impl";
+
+import { LocalizationRemoteDataSourceImpl } from "@/features/localization/data/datasources/localization-remote-data-source-impl";
+import { LocalizationRepositoryImpl } from "@/features/localization/data/repositories/localization-repository-impl";
+
 const DIContext = createContext<Container | null>(null);
 
 export function DIProvider({ children }: { children: React.ReactNode }) {
@@ -47,6 +53,18 @@ export function DIProvider({ children }: { children: React.ReactNode }) {
         const scanRepo = new ScanRepositoryImpl(scanRemoteDS);
         c.register(TOKENS.ScanRemoteDS, scanRemoteDS)
          .register(TOKENS.ScanRepo, scanRepo);
+
+        // ar
+        const routeStorageDS = new RouteStorageDataSourceImpl();
+        const routeRepo = new RouteRepositoryImpl(routeStorageDS);
+        c.register(TOKENS.AR_RouteStorageDS, routeStorageDS)
+         .register(TOKENS.AR_RouteRepo, routeRepo);
+
+        // localization
+        const localizationRemoteDS = new LocalizationRemoteDataSourceImpl();
+        const localizationRepo = new LocalizationRepositoryImpl(localizationRemoteDS);
+        c.register(TOKENS.Localization_RemoteDS, localizationRemoteDS)
+         .register(TOKENS.Localization_Repo, localizationRepo);
 
         return c;
     }, []);

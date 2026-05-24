@@ -1,3 +1,13 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/core/components/ui/alert-dialog';
 import { Button } from '@/core/components/ui/button';
 import { Drawer, DrawerContent, DrawerTitle } from '@/core/components/ui/drawer';
 import { Text } from '@/core/components/ui/text';
@@ -7,16 +17,25 @@ import { useScan } from '@/features/scan/presentation/context/scan-context';
 import { useViewer } from '@/features/viewer/presentation/context/viewer-context';
 import { File, Paths } from 'expo-file-system';
 import { RelativePathString, useRouter } from 'expo-router';
-import { Camera, Plus, X } from 'lucide-react-native';
+import { Image } from 'expo-image';
+import { useLocalization } from '@/features/localization/presentation/context/localization-context';
+import { ArrowUpFromLine, Camera, Plus, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, View } from 'react-native';
 
+function displayName(serie: string, jobId: string): string {
+  const suffix = `_${jobId}`;
+  return serie.endsWith(suffix) ? serie.slice(0, -suffix.length) : serie;
+}
+
 export function ScanScreen() {
   const router = useRouter();
-  const { scans, loading, updateScan, deleteScan } = useScan();
-  const { loadFromPath } = useViewer();
+  const { scans, portadas, loading, updateScan, deleteScan } = useScan();
+  const { loadFromPath, loadFile } = useViewer();
+  const locCtx = useLocalization();
 
   const [showDrawer, setShowDrawer] = useState(false);
+  const [showPlyAlert, setShowPlyAlert] = useState(false);
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -38,7 +57,10 @@ export function ScanScreen() {
           uri = localUri;
         } else {
           const res = await fetch(remoteUrl, { headers: { 'ngrok-skip-browser-warning': '1' } });
-          if (!res.ok) throw new Error(`Error al descargar el modelo (HTTP ${res.status})`);
+          if (!res.ok) {
+            if (res.status === 409) throw new Error('El modelo aún no está listo. El procesamiento puede tardar varios minutos.');
+            throw new Error(`Error al descargar el modelo (HTTP ${res.status})`);
+          }
           const bytes = new Uint8Array(await res.arrayBuffer());
           const dest = new File(Paths.document, `${selectedScan.jobId}_${selectedScan.tipo ?? 'dense'}.ply`);
           dest.write(bytes);
@@ -55,6 +77,20 @@ export function ScanScreen() {
     } finally {
       setViewLoading(false);
     }
+  };
+
+  const handleOpenFile = async () => {
+    try {
+      const loaded = await loadFile();
+      if (loaded) router.push('/viewer' as RelativePathString);
+    } catch {
+      // stay on screen
+    }
+  };
+
+  const handlePlyAlertConfirm = () => {
+    setShowPlyAlert(false);
+    handleOpenFile();
   };
 
   const handleDelete = async () => {
@@ -85,44 +121,79 @@ export function ScanScreen() {
           {scans.map(scan => (
             <View
               key={scan._id}
-              className="bg-white rounded-2xl px-4 py-4 gap-1.5 border border-gray-200 active:opacity-70"
+              className="bg-white rounded-2xl overflow-hidden border border-gray-200 active:opacity-70"
             >
-              <View className="flex-row items-center justify-between">
-                <Text className="text-gray-900 font-semibold text-base flex-1 mr-2" numberOfLines={1}>
-                  {scan.serie}
-                </Text>
-                <View className="bg-blue-50 border border-blue-300 rounded-full px-2.5 py-0.5">
-                  <Text className="text-blue-600 text-xs">{scan.tipo}</Text>
+              {portadas[scan.serie] && (
+                <Image
+                  source={{ uri: portadas[scan.serie] }}
+                  style={{ width: '100%', height: 120 }}
+                  contentFit="cover"
+                />
+              )}
+              <View className="px-4 pt-3 pb-4 gap-1.5">
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-gray-900 font-semibold text-base flex-1 mr-2" numberOfLines={1}>
+                    {displayName(scan.serie, scan.jobId)}
+                  </Text>
+                  <View className="bg-blue-50 border border-blue-300 rounded-full px-2.5 py-0.5">
+                    <Text className="text-blue-600 text-xs">{scan.tipo}</Text>
+                  </View>
                 </View>
+                <Text className="text-gray-400 text-xs">
+                  {scan.createdAt
+                    ? new Date(scan.createdAt).toLocaleDateString('es-CO', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })
+                    : ''}
+                </Text>
+                <Button variant="outline" onPress={() => setSelectedScan(scan)}>
+                  <Text>Ver detalles</Text>
+                </Button>
               </View>
-              <Text className="text-gray-400 text-xs">
-                {scan.createdAt
-                  ? new Date(scan.createdAt).toLocaleDateString('es-CO', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })
-                  : ''}
-              </Text>
-              <Button variant="outline" onPress={() => setSelectedScan(scan)}>
-                <Text>Ver Detalles</Text>
-              </Button>
             </View>
           ))}
         </ScrollView>
       )}
 
-      {/* FAB */}
-      <View className="absolute bottom-8 right-6">
+      {/* FABs */}
+      <View className="absolute bottom-8 right-6 gap-3">
         <Button
           onPress={() => setShowDrawer(true)}
           className="w-14 h-14 rounded-full shadow-lg items-center justify-center"
         >
           <Plus size={26} color="white" />
         </Button>
+        <Button
+          onPress={() => setShowPlyAlert(true)}
+          variant="secondary"
+          className="w-14 h-14 rounded-full shadow-lg items-center justify-center"
+        >
+          <ArrowUpFromLine size={22} color="#374151" />
+        </Button>
       </View>
 
       <NewScanDrawer open={showDrawer} onClose={() => setShowDrawer(false)} />
+
+      <AlertDialog open={showPlyAlert} onOpenChange={setShowPlyAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Solo visualización local</AlertDialogTitle>
+            <AlertDialogDescription>
+              El archivo PLY que selecciones se visualizará únicamente en este dispositivo. No se guardará en la nube ni quedará asociado a ningún escaneo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <Text>Cancelar</Text>
+            </AlertDialogCancel>
+            <AlertDialogAction onPress={handlePlyAlertConfirm}>
+              <Text>Continuar</Text>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Drawer de opciones del scan seleccionado */}
       <Drawer
@@ -144,7 +215,7 @@ export function ScanScreen() {
                 <X size={20} color="#374151" />
               </Button>
               <Text variant="h4" className="text-center flex-1" numberOfLines={1}>
-                {selectedScan?.serie?.toUpperCase()}
+                {selectedScan ? displayName(selectedScan.serie, selectedScan.jobId).toUpperCase() : ''}
               </Text>
               <View style={{ width: 50 }} />
             </View>
@@ -176,8 +247,17 @@ export function ScanScreen() {
                 </View>
               )}
 
-              <Button variant="secondary" disabled>
-                <Text className="text-gray-400">Probar VPS</Text>
+              <Button
+                variant="secondary"
+                disabled={viewLoading}
+                onPress={() => {
+                  locCtx.reset();
+                  locCtx.setSelectedScan(selectedScan!);
+                  setSelectedScan(null);
+                  router.push('/localization' as RelativePathString);
+                }}
+              >
+                <Text>Probar VPS</Text>
               </Button>
 
               <Button variant="ghost" onPress={handleDelete} disabled={viewLoading}>

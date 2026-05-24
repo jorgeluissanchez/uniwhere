@@ -54,3 +54,6 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+######################################
+Este es la interfaz gráfica de la aplicación UniWhere, misma pensada para ser la solución del día a día a los problemas comunes que tienen los estudiantes durante sus primeros semestres de estancia en la universidad.

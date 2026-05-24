@@ -5,7 +5,7 @@ import { Platform, Pressable } from 'react-native';
 
 const buttonVariants = cva(
   cn(
-    'group font-cal shrink-0 flex-row items-center justify-center gap-2 rounded-full shadow-none',
+    'group font-cal shrink-0 flex-row items-center justify-center gap-2 rounded-full shadow-none overflow-visible',
     Platform.select({
       web: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive whitespace-nowrap outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
     })
@@ -40,7 +40,7 @@ const buttonVariants = cva(
         link: '',
       },
       size: {
-        default: cn('h-14 px-5 py-3', Platform.select({ web: 'has-[>svg]:px-4 sm:h-10' })),
+        default: cn('min-h-14 px-5 py-3', Platform.select({ web: 'has-[>svg]:px-4 sm:h-10' })),
         sm: cn('h-9 gap-1.5 rounded-md px-2.5 py-2 sm:h-8', Platform.select({ web: 'has-[>svg]:px-2' })),
         lg: cn('h-12 rounded-md px-7 py-3 sm:h-11', Platform.select({ web: 'has-[>svg]:px-5' })),
         icon: 'h-10 w-10 p-0 sm:h-9 sm:w-9',

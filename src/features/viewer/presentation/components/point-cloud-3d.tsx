@@ -4,29 +4,38 @@ import { useThree } from '@react-three/fiber/native';
 
 interface Props {
   geometry: THREE.BufferGeometry;
+  focusPoint?: THREE.Vector3;
 }
 
-export function PointCloud3D({ geometry }: Props) {
+export function PointCloud3D({ geometry, focusPoint }: Props) {
   const { camera } = useThree();
   const pointsRef = useRef<THREE.Points>(null);
 
   useEffect(() => {
     if (!pointsRef.current) return;
 
-    geometry.center();
     geometry.computeBoundingSphere();
-
     const sphere = geometry.boundingSphere!;
-    const distance = sphere.radius * 2.5;
 
-    camera.position.set(0, 0, distance);
+    if (focusPoint) {
+      // Place camera elevated and behind the marker so it's immediately visible
+      const dist = sphere.radius * 2.0;
+      camera.position.set(
+        focusPoint.x,
+        focusPoint.y + dist * 0.45,
+        focusPoint.z + dist,
+      );
+      camera.lookAt(focusPoint);
+    } else {
+      camera.position.set(0, 0, sphere.radius * 2.5);
+    }
 
     if (camera instanceof THREE.PerspectiveCamera) {
-      camera.near = distance * 0.001;
-      camera.far = distance * 100;
+      camera.near = sphere.radius * 0.001;
+      camera.far = sphere.radius * 100;
       camera.updateProjectionMatrix();
     }
-  }, [geometry, camera]);
+  }, [geometry, camera, focusPoint]);
 
   return (
     <points ref={pointsRef} geometry={geometry}>

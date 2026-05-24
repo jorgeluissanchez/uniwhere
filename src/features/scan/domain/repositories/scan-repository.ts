@@ -7,4 +7,5 @@ export interface ScanRepository {
   saveScan(params: SaveScanParams): Promise<void>;
   updateScan(scanId: string, localUri: string): Promise<void>;
   deleteScan(scanId: string): Promise<void>;
+  fetchPortada(serie: string): Promise<string | null>;
 }

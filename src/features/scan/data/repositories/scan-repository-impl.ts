@@ -20,4 +20,8 @@ export class ScanRepositoryImpl implements ScanRepository {
   async deleteScan(scanId: string): Promise<void> {
     return this.remoteDS.deleteScan(scanId);
   }
+
+  async fetchPortada(serie: string): Promise<string | null> {
+    return this.remoteDS.fetchPortada(serie);
+  }
 }
