@@ -1,17 +1,11 @@
 import { Button } from "@/core/components/ui/button";
 import { Text } from "@/core/components/ui/text";
-
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
-
 import { RelativePathString, useRouter } from "expo-router";
-
 import React, { useMemo } from "react";
-
 import { Dimensions, View } from "react-native";
-
 import { SvgXml } from "react-native-svg";
-
-import { WELCOME_SVG } from "../../../assets/svgs/welcome";
+import { UNDRAW_RIGHT_DIRECTION_SVG } from "../../../assets/svgs/undrawRightDirection";
 
 export default function StudentWelcomeScreen() {
   const router = useRouter();
@@ -29,7 +23,8 @@ export default function StudentWelcomeScreen() {
   }, [loggedUser]);
 
   return (
-    <View className="flex-1 bg-blue-500">
+    <View className="flex-1 bg-blue-500 overflow-hidden">
+
       <View className="flex-1 w-full max-w-lg self-center px-6 pt-10 pb-8 justify-between">
         <Text className="text-lg text-center text-white font-bold">UniWhere</Text>
 
@@ -48,8 +43,8 @@ export default function StudentWelcomeScreen() {
               : "Escanea y descubre los espacios universitarios a través de fotos."}
           </Text>
 
-          <View className="mt-8 items-center justify-center">
-            <SvgXml xml={WELCOME_SVG} width={width < 400 ? width - 80 : 350} height={width < 400 ? width - 80 : 350} />
+          <View className="mt-8 items-center justify-center" style={{ transform: [{ translateX: 30 }] }}>
+            <SvgXml xml={UNDRAW_RIGHT_DIRECTION_SVG} width={width < 400 ? width - 80 : 350} height={width < 400 ? width - 80 : 350} />
           </View>
         </View>
 
