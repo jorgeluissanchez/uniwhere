@@ -78,10 +78,10 @@ export function ScanScreen() {
 
   const handleOpenFile = async () => {
     try {
-      await loadFile();
-      router.push('/viewer' as RelativePathString);
+      const loaded = await loadFile();
+      if (loaded) router.push('/viewer' as RelativePathString);
     } catch {
-      // user cancelled picker or load failed — stay on screen
+      // stay on screen
     }
   };
 
