@@ -22,7 +22,7 @@ export function PointCloudCanvas({ cloud, markerPoint }: Props) {
     if (!markerPoint) return 0.05;
     const size = new THREE.Vector3();
     cloud.boundingBox.getSize(size);
-    return Math.max(size.x, size.y, size.z) * 0.012;
+    return Math.max(size.x, size.y, size.z) * 0.06;  // 5× the base 0.012
   }, [cloud.boundingBox, markerPoint]);
 
   return (
@@ -30,7 +30,7 @@ export function PointCloudCanvas({ cloud, markerPoint }: Props) {
       <Canvas>
         <OrbitControls />
         <ambientLight intensity={1} />
-        <PointCloud3D geometry={cloud.geometry} />
+        <PointCloud3D geometry={cloud.geometry} focusPoint={markerPoint} />
         {markerPoint && (
           <LocatedMarker position={markerPoint} radius={markerRadius} />
         )}

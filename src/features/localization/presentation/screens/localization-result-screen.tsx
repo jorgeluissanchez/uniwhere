@@ -37,6 +37,14 @@ export function LocalizationResultScreen() {
     <View className="flex-1 bg-[#0f0f1a]">
       <PointCloudCanvas cloud={cloud} markerPoint={markerPoint} />
 
+      {/* "Usted se encuentra aquí" badge */}
+      {markerPoint && (
+        <View className="absolute top-12 left-5 right-16 flex-row items-center gap-2 bg-black/70 rounded-2xl px-4 py-2.5">
+          <View className="w-3 h-3 rounded-full bg-red-500" />
+          <Text className="text-white text-sm font-semibold flex-1">Usted se encuentra aquí</Text>
+        </View>
+      )}
+
       {/* Back button */}
       <View className="absolute top-12 right-5">
         <Button
