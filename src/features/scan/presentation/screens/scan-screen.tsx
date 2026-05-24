@@ -18,7 +18,8 @@ import { useViewer } from '@/features/viewer/presentation/context/viewer-context
 import { File, Paths } from 'expo-file-system';
 import { RelativePathString, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { ArrowUpFromLine, Camera, MapPin, Plus, X } from 'lucide-react-native';
+import { useLocalization } from '@/features/localization/presentation/context/localization-context';
+import { ArrowUpFromLine, Camera, Plus, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, View } from 'react-native';
 
@@ -31,6 +32,7 @@ export function ScanScreen() {
   const router = useRouter();
   const { scans, portadas, loading, updateScan, deleteScan } = useScan();
   const { loadFromPath, loadFile } = useViewer();
+  const locCtx = useLocalization();
 
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPlyAlert, setShowPlyAlert] = useState(false);
@@ -170,13 +172,6 @@ export function ScanScreen() {
         >
           <ArrowUpFromLine size={22} color="#374151" />
         </Button>
-        <Button
-          onPress={() => router.push('/localization' as RelativePathString)}
-          variant="secondary"
-          className="w-14 h-14 rounded-full shadow-lg items-center justify-center"
-        >
-          <MapPin size={22} color="#374151" />
-        </Button>
       </View>
 
       <NewScanDrawer open={showDrawer} onClose={() => setShowDrawer(false)} />
@@ -252,8 +247,17 @@ export function ScanScreen() {
                 </View>
               )}
 
-              <Button variant="secondary" disabled>
-                <Text className="text-gray-400">Probar VPS</Text>
+              <Button
+                variant="secondary"
+                disabled={viewLoading}
+                onPress={() => {
+                  locCtx.reset();
+                  locCtx.setSelectedScan(selectedScan!);
+                  setSelectedScan(null);
+                  router.push('/localization' as RelativePathString);
+                }}
+              >
+                <Text>Probar VPS</Text>
               </Button>
 
               <Button variant="ghost" onPress={handleDelete} disabled={viewLoading}>

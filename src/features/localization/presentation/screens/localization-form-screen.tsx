@@ -1,8 +1,6 @@
 import { Button } from '@/core/components/ui/button';
 import { Text } from '@/core/components/ui/text';
 import { useLocalization } from '@/features/localization/presentation/context/localization-context';
-import { SeriesPicker } from '@/features/localization/presentation/components/series-picker';
-import { useScan } from '@/features/scan/presentation/context/scan-context';
 import { useViewer } from '@/features/viewer/presentation/context/viewer-context';
 import * as DocumentPicker from 'expo-document-picker';
 import { Image } from 'expo-image';
@@ -11,13 +9,17 @@ import { ChevronLeft, ImageIcon } from 'lucide-react-native';
 import React from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-native';
 
+function displayName(serie: string, jobId: string): string {
+  const suffix = `_${jobId}`;
+  return serie.endsWith(suffix) ? serie.slice(0, -suffix.length) : serie;
+}
+
 export function LocalizationFormScreen() {
   const router = useRouter();
-  const { scans } = useScan();
   const { loadFromPath } = useViewer();
   const {
     selectedScan, image, submitting, error,
-    setSelectedScan, setImage, submit, reset,
+    setImage, submit, reset,
   } = useLocalization();
 
   const pickImage = async () => {
@@ -75,20 +77,19 @@ export function LocalizationFormScreen() {
         className="flex-1"
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 24 }}
       >
-        {/* Step 1: Series */}
-        <View className="gap-3">
-          <Text className="text-gray-700 font-semibold">1. Selecciona una serie descargada</Text>
-          <SeriesPicker
-            scans={scans}
-            selected={selectedScan}
-            onSelect={setSelectedScan}
-            disabled={submitting}
-          />
-        </View>
+        {/* Serie info */}
+        {selectedScan && (
+          <View className="rounded-2xl bg-blue-50 border border-blue-200 px-4 py-3">
+            <Text className="text-blue-400 text-xs mb-0.5">Serie seleccionada</Text>
+            <Text className="text-blue-700 font-semibold" numberOfLines={1}>
+              {displayName(selectedScan.serie, selectedScan.jobId)}
+            </Text>
+          </View>
+        )}
 
-        {/* Step 2: Image */}
+        {/* Image */}
         <View className="gap-3">
-          <Text className="text-gray-700 font-semibold">2. Sube una imagen de referencia</Text>
+          <Text className="text-gray-700 font-semibold">Sube una imagen de referencia</Text>
           <Pressable onPress={submitting ? undefined : pickImage}>
             {image ? (
               <Image
