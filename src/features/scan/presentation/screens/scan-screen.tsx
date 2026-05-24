@@ -17,7 +17,7 @@ import { useScan } from '@/features/scan/presentation/context/scan-context';
 import { useViewer } from '@/features/viewer/presentation/context/viewer-context';
 import { File, Paths } from 'expo-file-system';
 import { RelativePathString, useRouter } from 'expo-router';
-import { ArrowUpFromLine, Camera, Plus, X } from 'lucide-react-native';
+import { ArrowUpFromLine, Camera, MapPin, Plus, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, View } from 'react-native';
 
@@ -159,6 +159,13 @@ export function ScanScreen() {
           className="w-14 h-14 rounded-full shadow-lg items-center justify-center"
         >
           <ArrowUpFromLine size={22} color="#374151" />
+        </Button>
+        <Button
+          onPress={() => router.push('/localization' as RelativePathString)}
+          variant="secondary"
+          className="w-14 h-14 rounded-full shadow-lg items-center justify-center"
+        >
+          <MapPin size={22} color="#374151" />
         </Button>
       </View>
 
