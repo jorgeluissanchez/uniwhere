@@ -31,7 +31,7 @@ export default function SettingsScreen() {
 
   return (
     <View className="flex-1 overflow-hidden bg-blue-900">
-      <View pointerEvents="none" className="absolute inset-0">
+      <View pointerEvents="none" className="absolute inset-0" style={{ opacity: 0.35 }}>
         <SvgXml xml={LOW_POLY_GRID_SVG} width={width} height={height} preserveAspectRatio="xMidYMid slice" />
       </View>
 
@@ -73,8 +73,8 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      <View className="items-center pb-6">
-        <SvgXml xml={CURIOUS_CUATE_SVG} width={280} height={280} />
+      <View className="items-center pb-4">
+        <SvgXml xml={CURIOUS_CUATE_SVG} width={width * 0.85} height={width * 0.85} />
       </View>
     </View>
   );
