@@ -11,7 +11,7 @@ import { Dimensions, View } from "react-native";
 
 import { SvgXml } from "react-native-svg";
 
-import { WELCOME_SVG } from "../../../assets/svgs/welcome";
+import { UNDRAW_RIGHT_DIRECTION_SVG } from "../../../assets/svgs/undrawRightDirection";
 
 export default function StudentWelcomeScreen() {
   const router = useRouter();
@@ -49,7 +49,7 @@ export default function StudentWelcomeScreen() {
           </Text>
 
           <View className="mt-8 items-center justify-center">
-            <SvgXml xml={WELCOME_SVG} width={width < 400 ? width - 80 : 350} height={width < 400 ? width - 80 : 350} />
+            <SvgXml xml={UNDRAW_RIGHT_DIRECTION_SVG} width={width < 400 ? width - 80 : 350} height={width < 400 ? width - 80 : 350} />
           </View>
         </View>
 

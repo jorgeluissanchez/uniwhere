@@ -1,4 +1,4 @@
-import { LOGIN_SVG } from "@/assets/svgs/login";
+import { STUDENTS_RAFIKI_SVG } from "@/assets/svgs/studentsRafiki";
 import { Button } from "@/core/components/ui/button";
 import { Text } from "@/core/components/ui/text";
 import { LoginForm } from "@/features/auth/presentation/components/login-form";
@@ -14,7 +14,7 @@ export default function LoginScreen() {
   return (
     <View className="flex-1 bg-white overflow-hidden">
       <View pointerEvents="none" className="absolute inset-0">
-        <SvgXml xml={LOGIN_SVG} width={500} height={300} className="absolute -top-16 left-1/2 -ml-[250px] -z-10" />
+        <SvgXml xml={STUDENTS_RAFIKI_SVG} width={500} height={300} className="absolute -top-16 left-1/2 -ml-[250px] -z-10" />
       </View>
       <View className="px-6 w-full max-w-lg mx-auto">
         <View className="flex-row justify-between items-center py-20">
