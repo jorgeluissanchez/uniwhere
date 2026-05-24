@@ -5,7 +5,6 @@ import { RelativePathString, useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import { Dimensions, View } from "react-native";
 import { SvgXml } from "react-native-svg";
-import { LAYERED_WAVES_SVG } from "../../../assets/svgs/layeredWaves";
 import { UNDRAW_RIGHT_DIRECTION_SVG } from "../../../assets/svgs/undrawRightDirection";
 
 export default function StudentWelcomeScreen() {
@@ -25,11 +24,7 @@ export default function StudentWelcomeScreen() {
 
   return (
     <View className="flex-1 bg-blue-500 overflow-hidden">
-      <View pointerEvents="none" className="absolute inset-0">
-        <View className="absolute top-0 left-0">
-          <SvgXml xml={LAYERED_WAVES_SVG} width={width} height={160} preserveAspectRatio="xMidYMin slice" />
-        </View>
-      </View>
+
       <View className="flex-1 w-full max-w-lg self-center px-6 pt-10 pb-8 justify-between">
         <Text className="text-lg text-center text-white font-bold">UniWhere</Text>
 
@@ -48,7 +43,7 @@ export default function StudentWelcomeScreen() {
               : "Escanea y descubre los espacios universitarios a través de fotos."}
           </Text>
 
-          <View className="mt-8 items-center justify-center">
+          <View className="mt-8 items-center justify-center" style={{ transform: [{ translateX: 30 }] }}>
             <SvgXml xml={UNDRAW_RIGHT_DIRECTION_SVG} width={width < 400 ? width - 80 : 350} height={width < 400 ? width - 80 : 350} />
           </View>
         </View>

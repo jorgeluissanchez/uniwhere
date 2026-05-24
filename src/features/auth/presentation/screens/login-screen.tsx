@@ -15,8 +15,8 @@ export default function LoginScreen() {
   return (
     <View className="flex-1 bg-white">
       {/* Illustration */}
-      <View className="w-full items-center bg-blue-50">
-        <SvgXml xml={STUDENTS_RAFIKI_SVG} width={width} height={220} preserveAspectRatio="xMidYMid meet" />
+      <View className="w-full items-center bg-blue-50 overflow-hidden" style={{ height: 280 }}>
+        <SvgXml xml={STUDENTS_RAFIKI_SVG} width={width * 1.18} height={280 * 1.18} preserveAspectRatio="xMidYMid meet" />
       </View>
 
       {/* Back button overlaid on illustration */}

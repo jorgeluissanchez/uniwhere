@@ -74,7 +74,7 @@ export default function SettingsScreen() {
       </View>
 
       <View className="items-center pb-4">
-        <SvgXml xml={CURIOUS_CUATE_SVG} width={width * 1.275} height={width * 1.275} />
+        <SvgXml xml={CURIOUS_CUATE_SVG} width={width * 1.1} height={width * 1.1} />
       </View>
     </View>
   );
