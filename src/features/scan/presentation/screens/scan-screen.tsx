@@ -7,14 +7,19 @@ import { useScan } from '@/features/scan/presentation/context/scan-context';
 import { useViewer } from '@/features/viewer/presentation/context/viewer-context';
 import { File, Paths } from 'expo-file-system';
 import { RelativePathString, useRouter } from 'expo-router';
-import { Camera, Plus, X } from 'lucide-react-native';
+import { ArrowUpFromLine, Camera, Plus, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, View } from 'react-native';
+
+function displayName(serie: string, jobId: string): string {
+  const suffix = `_${jobId}`;
+  return serie.endsWith(suffix) ? serie.slice(0, -suffix.length) : serie;
+}
 
 export function ScanScreen() {
   const router = useRouter();
   const { scans, loading, updateScan, deleteScan } = useScan();
-  const { loadFromPath } = useViewer();
+  const { loadFromPath, loadFile } = useViewer();
 
   const [showDrawer, setShowDrawer] = useState(false);
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
@@ -38,7 +43,10 @@ export function ScanScreen() {
           uri = localUri;
         } else {
           const res = await fetch(remoteUrl, { headers: { 'ngrok-skip-browser-warning': '1' } });
-          if (!res.ok) throw new Error(`Error al descargar el modelo (HTTP ${res.status})`);
+          if (!res.ok) {
+            if (res.status === 409) throw new Error('El modelo aún no está listo. El procesamiento puede tardar varios minutos.');
+            throw new Error(`Error al descargar el modelo (HTTP ${res.status})`);
+          }
           const bytes = new Uint8Array(await res.arrayBuffer());
           const dest = new File(Paths.document, `${selectedScan.jobId}_${selectedScan.tipo ?? 'dense'}.ply`);
           dest.write(bytes);
@@ -54,6 +62,15 @@ export function ScanScreen() {
       setActionError(e instanceof Error ? e.message : 'No se pudo cargar el modelo');
     } finally {
       setViewLoading(false);
+    }
+  };
+
+  const handleOpenFile = async () => {
+    try {
+      await loadFile();
+      router.push('/viewer' as RelativePathString);
+    } catch {
+      // user cancelled picker or load failed — stay on screen
     }
   };
 
@@ -89,7 +106,7 @@ export function ScanScreen() {
             >
               <View className="flex-row items-center justify-between">
                 <Text className="text-gray-900 font-semibold text-base flex-1 mr-2" numberOfLines={1}>
-                  {scan.serie}
+                  {displayName(scan.serie, scan.jobId)}
                 </Text>
                 <View className="bg-blue-50 border border-blue-300 rounded-full px-2.5 py-0.5">
                   <Text className="text-blue-600 text-xs">{scan.tipo}</Text>
@@ -105,20 +122,27 @@ export function ScanScreen() {
                   : ''}
               </Text>
               <Button variant="outline" onPress={() => setSelectedScan(scan)}>
-                <Text>Ver Detalles</Text>
+                <Text>Ver detalles</Text>
               </Button>
             </View>
           ))}
         </ScrollView>
       )}
 
-      {/* FAB */}
-      <View className="absolute bottom-8 right-6">
+      {/* FABs */}
+      <View className="absolute bottom-8 right-6 gap-3">
         <Button
           onPress={() => setShowDrawer(true)}
           className="w-14 h-14 rounded-full shadow-lg items-center justify-center"
         >
           <Plus size={26} color="white" />
+        </Button>
+        <Button
+          onPress={handleOpenFile}
+          variant="secondary"
+          className="w-14 h-14 rounded-full shadow-lg items-center justify-center"
+        >
+          <ArrowUpFromLine size={22} color="#374151" />
         </Button>
       </View>
 
@@ -144,7 +168,7 @@ export function ScanScreen() {
                 <X size={20} color="#374151" />
               </Button>
               <Text variant="h4" className="text-center flex-1" numberOfLines={1}>
-                {selectedScan?.serie?.toUpperCase()}
+                {selectedScan ? displayName(selectedScan.serie, selectedScan.jobId).toUpperCase() : ''}
               </Text>
               <View style={{ width: 50 }} />
             </View>
