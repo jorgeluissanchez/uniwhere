@@ -1,4 +1,4 @@
-export type JobStatus = 'pending' | 'running' | 'done' | 'error' | 'timeout';
+export type JobStatus = 'pending' | 'reconstructing' | 'training' | 'done' | 'error' | 'timeout';
 
 export type ReconstructionJob = {
   jobId: string;

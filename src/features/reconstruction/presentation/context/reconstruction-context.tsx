@@ -6,7 +6,7 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
 type ReconstructionContextType = {
   submitting: boolean;
   error: string | null;
-  startJob: (params: StartJobParams) => Promise<string>;
+  startJob: (params: StartJobParams) => Promise<{ jobId: string; serie: string }>;
 };
 
 const ReconstructionContext = createContext<ReconstructionContextType | undefined>(undefined);
@@ -18,12 +18,11 @@ export function ReconstructionProvider({ children }: { children: React.ReactNode
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const startJob = useCallback(async (params: StartJobParams): Promise<string> => {
+  const startJob = useCallback(async (params: StartJobParams): Promise<{ jobId: string; serie: string }> => {
     setSubmitting(true);
     setError(null);
     try {
-      const { jobId } = await repo.startJob(params);
-      return jobId;
+      return await repo.startJob(params);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Error al iniciar el trabajo de reconstrucción';
       setError(msg);

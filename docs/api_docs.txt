@@ -1,0 +1,660 @@
+# Levantar servidor:
+#   cd backend
+#   uv run --with fastapi --with uvicorn --with python-multipart --with torch --with opencv-python-headless --with httpx \
+#     uvicorn reconstruct_api:app --host 0.0.0.0 --port 8765
+#
+# Tunnel ngrok (puerto 7844 bloqueado en red — usar ngrok sobre 443):
+#   ~/.local/bin/ngrok http 8765
+#
+# Flujo de uso:
+#   1. POST /reconstruct           → {"job_id": "abc123", "status": "pending", ...}
+#   2. GET  /status/abc123         → {"status": "reconstructing|training|done", ...}
+#   3. GET  /download/abc123       → streaming PLY (cuando done)
+#   4. POST /{serie}/localize      → {"success": bool, "translation": [...], "rotation": [...], ...}
+#   5. GET  /{serie}/portada       → primera imagen JPEG
+#
+# Con ngrok (añadir header en todos los requests):
+#   -H "ngrok-skip-browser-warning: true"
+
+import asyncio
+import json
+import re
+import sys, os
+import uuid
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from enum import Enum
+from pathlib import Path
+from typing import Annotated
+
+import cv2
+import httpx
+import numpy as np
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from backend.relocalization.ace_relocalizer import ACERelocalizer
+
+app = FastAPI(
+    title="UniWhere Reconstruction API",
+    description="""
+API para reconstrucción 3D de espacios interiores y localización visual 6DoF.
+
+## Flujo principal
+
+1. **POST /reconstruct** — Sube fotos de un espacio, inicia reconstrucción 3D + entrenamiento del localizador en background.
+2. **GET /status/{job_id}** — Consulta el estado del job (pendiente → reconstruyendo → entrenando → listo).
+3. **GET /download/{job_id}** — Descarga la nube de puntos PLY cuando el job esté `done`.
+4. **POST /{serie}/localize** — Dado una foto query, estima la posición 6DoF de la cámara en el espacio.
+
+## Notas de uso con ngrok
+
+Si accedes a través de un túnel ngrok, añade este header en todos los requests:
+```
+ngrok-skip-browser-warning: true
+```
+
+## Estados del job
+
+| Estado | Descripción |
+|---|---|
+| `pending` | Job creado, en cola |
+| `reconstructing` | Generando nube de puntos 3D con DA3-Nested |
+| `training` | Entrenando localizador visual ACE |
+| `done` | Proceso completo — PLY y localizador disponibles |
+| `error` | Falló en alguna etapa (ver campo `error`) |
+| `timeout` | Excedió 30 minutos de tiempo límite |
+""",
+    version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+DATA_ROOT = Path(__file__).parent.parent / "preprocesamiento" / "data"
+REGISTRY_FILE = DATA_ROOT / "series_registry.json"
+ACE_ENCODER = Path(__file__).parent.parent / "preprocesamiento" / "models" / "ace" / "ace_encoder_pretrained.pt"
+
+_relocalizer_cache: dict[str, ACERelocalizer] = {}
+
+
+def _load_registry() -> dict:
+    if REGISTRY_FILE.exists():
+        return json.loads(REGISTRY_FILE.read_text())
+    return {}
+
+
+def _save_registry(registry: dict) -> None:
+    REGISTRY_FILE.write_text(json.dumps(registry, indent=2, ensure_ascii=False))
+
+
+class JobStatus(str, Enum):
+    pending = "pending"
+    reconstructing = "reconstructing" # depth anything
+    training = "training" # ace comenzo a entrenar y ply generado
+    done = "done" # todo termino (tu app siempre espera este)
+    error = "error"
+    timeout = "timeout"
+
+
+@dataclass
+class Job:
+    job_id: str
+    serie: str
+    created_at: str
+    infer_gs: bool = False
+    status: JobStatus = JobStatus.pending
+    progress: list[str] = field(default_factory=list)
+    ply_path: Path | None = None
+    splat_path: Path | None = None
+    ace_model_path: Path | None = None
+    error: str | None = None
+    callback_url: str | None = None
+
+
+# ── Response models ───────────────────────────────────────────────────────────
+
+class ReconstructResponse(BaseModel):
+    job_id: str
+    status: str
+    serie: str
+    base_name: str
+    created_at: str
+    portada_url: str
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "job_id": "8f80dca6fe4e",
+                "status": "pending",
+                "serie": "salon_8f80dca6fe4e",
+                "base_name": "salon",
+                "created_at": "2026-05-22T01:00:52Z",
+                "portada_url": "https://tu-ngrok.ngrok-free.dev/salon_8f80dca6fe4e/portada",
+            }
+        }
+    }
+
+
+class StatusResponse(BaseModel):
+    job_id: str
+    serie: str
+    created_at: str
+    status: JobStatus
+    progress: list[str]
+    error: str | None
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "job_id": "8f80dca6fe4e",
+                "serie": "salon_8f80dca6fe4e",
+                "created_at": "2026-05-22T01:00:52Z",
+                "status": "training",
+                "progress": [
+                    "Esperando GPU disponible...",
+                    "Iniciando Docker...",
+                    "Reconstrucción 3D completada.",
+                    "Iniciando entrenamiento del localizador ACE...",
+                ],
+                "error": None,
+            }
+        }
+    }
+
+
+class LocalizeResponse(BaseModel):
+    success: bool
+    inlier_count: int
+    translation: list[float]
+    rotation: list[list[float]]
+    pose: list[list[float]]
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "success": True,
+                "inlier_count": 47,
+                "translation": [1.23, 0.45, 2.87],
+                "rotation": [
+                    [0.99, -0.01, 0.12],
+                    [0.01,  1.00, 0.00],
+                    [-0.12, 0.00, 0.99],
+                ],
+                "pose": [
+                    [0.99, -0.01, 0.12, 1.23],
+                    [0.01,  1.00, 0.00, 0.45],
+                    [-0.12, 0.00, 0.99, 2.87],
+                    [0.00,  0.00, 0.00, 1.00],
+                ],
+            }
+        }
+    }
+
+
+# ── Internal state ────────────────────────────────────────────────────────────
+
+_jobs: dict[str, Job] = {}
+_gpu_lock = asyncio.Semaphore(1)
+
+
+# ── Background pipeline ───────────────────────────────────────────────────────
+
+async def _notify(job: Job) -> None:
+    if not job.callback_url:
+        return
+    payload = {
+        "job_id": job.job_id,
+        "serie": job.serie,
+        "status": job.status,
+        "error": job.error,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(job.callback_url, json=payload)
+    except Exception:
+        pass
+
+
+async def _run_reconstruction(job_id: str):
+    job = _jobs[job_id]
+    job.status = JobStatus.reconstructing
+    job.progress.append("Esperando GPU disponible...")
+    await _notify(job)
+    async with _gpu_lock:
+        await _docker_reconstruct(job)
+        if job.status == JobStatus.reconstructing:
+            await _ace_train(job)
+        else:
+            await _notify(job)
+
+
+async def _docker_reconstruct(job: Job) -> None:
+    images_dir = DATA_ROOT / job.serie / "images"
+    output_dir = DATA_ROOT / job.serie / "mapanything"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    job.progress.append("Iniciando Docker...")
+
+    hf_cache = Path.home() / ".cache" / "huggingface"
+    hf_cache.mkdir(parents=True, exist_ok=True)
+
+    proc = await asyncio.create_subprocess_exec(
+        "docker", "run", "--rm",
+        "--gpus", "all",
+        "--shm-size=16g",
+        "-v", f"{images_dir}:/images:ro",
+        "-v", f"{output_dir}:/output",
+        "-v", f"{hf_cache}:/root/.cache/huggingface",
+        "-e", "HF_HUB_OFFLINE=1",
+        "mapanything:latest",
+        "--images-dir", "/images",
+        "--output-dir", "/output",
+        "--serie", job.serie,
+        "--model", "da3_nested",
+        "--conf-thr", "0.8",
+        "--minibatch-size", "1",
+        *(["--infer-gs", "--gs-prune-depth", "0.80"] if job.infer_gs else []),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+    )
+
+    async def _read_output():
+        while True:
+            line = await proc.stdout.readline()
+            if not line:
+                break
+            job.progress.append(line.decode().rstrip())
+
+    try:
+        await asyncio.wait_for(
+            asyncio.gather(proc.wait(), _read_output()),
+            timeout=1800,
+        )
+    except asyncio.TimeoutError:
+        proc.kill()
+        job.status = JobStatus.timeout
+        job.error = "Reconstrucción excedió el tiempo límite (30 min)"
+        return
+
+    if proc.returncode != 0:
+        job.status = JobStatus.error
+        job.error = f"Docker falló con código {proc.returncode}"
+        return
+
+    ply_path = output_dir / "dense" / "0" / f"{job.serie}_dense.ply"
+    if not ply_path.exists():
+        job.status = JobStatus.error
+        job.error = "PLY no encontrado tras reconstrucción"
+        return
+
+    job.ply_path = ply_path
+    if job.infer_gs:
+        splat_path = output_dir / "dense" / "0" / f"{job.serie}_native_splat.ply"
+        job.splat_path = splat_path if splat_path.exists() else None
+    job.progress.append("Reconstrucción 3D completada.")
+
+
+async def _ace_train(job: Job) -> None:
+    ace_scene_rel = f"{job.serie}/mapanything/ace"
+    ace_scene_full = DATA_ROOT / job.serie / "mapanything" / "ace"
+
+    if not ace_scene_full.exists():
+        job.status = JobStatus.error
+        job.error = "Escena ACE no encontrada tras reconstrucción"
+        return
+
+    job.status = JobStatus.training
+    job.progress.append("Iniciando entrenamiento del localizador ACE...")
+    await _notify(job)
+
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ace_model_rel = f"{job.serie}/mapanything/ace/models/{ts}.pt"
+    (DATA_ROOT / job.serie / "mapanything" / "ace" / "models").mkdir(parents=True, exist_ok=True)
+
+    num_cpus = str(os.cpu_count() or 4)
+    proc = await asyncio.create_subprocess_exec(
+        "docker", "run", "--rm",
+        "--gpus", "all",
+        "-e", "NVIDIA_VISIBLE_DEVICES=all",
+        "-e", "NVIDIA_DRIVER_CAPABILITIES=compute,utility",
+        "-v", f"{DATA_ROOT}:/data",
+        "-w", "/ace",
+        "--ipc=host",
+        "--shm-size=16g",
+        f"--cpus={num_cpus}",
+        "ace:latest",
+        "train_ace.py",
+        f"/data/{ace_scene_rel}",
+        f"/data/{ace_model_rel}",
+        "--encoder_path", "/ace/ace_encoder_pretrained.pt",
+        "--epochs", "32",
+        "--training_buffer_size", "12000000",
+        "--samples_per_image", "2048",
+        "--batch_size", "8192",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+    )
+
+    async def _read_ace_output():
+        while True:
+            line = await proc.stdout.readline()
+            if not line:
+                break
+            job.progress.append(line.decode().rstrip())
+
+    try:
+        await asyncio.wait_for(
+            asyncio.gather(proc.wait(), _read_ace_output()),
+            timeout=1800,
+        )
+    except asyncio.TimeoutError:
+        proc.kill()
+        job.status = JobStatus.timeout
+        job.error = "Entrenamiento ACE excedió el tiempo límite (30 min)"
+        return
+
+    if proc.returncode != 0:
+        job.status = JobStatus.error
+        job.error = f"ACE train falló con código {proc.returncode}"
+        return
+
+    ace_model_full = DATA_ROOT / ace_model_rel
+    if not ace_model_full.exists():
+        job.status = JobStatus.error
+        job.error = "Modelo ACE no encontrado tras entrenamiento"
+        return
+
+    job.ace_model_path = ace_model_full
+    job.status = JobStatus.done
+    job.progress.append("Localizador entrenado y listo.")
+    await _notify(job)
+
+
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
+@app.post(
+    "/reconstruct",
+    response_model=ReconstructResponse,
+    summary="Iniciar reconstrucción 3D",
+    description="""
+Sube entre 1 y 100 fotos de un espacio y lanza el pipeline completo en background:
+
+1. **Reconstrucción 3D** con DA3-Nested (~10-30 min según cantidad de fotos)
+2. **Entrenamiento del localizador ACE** (~3-5 min)
+
+Retorna inmediatamente con un `job_id`. Usa `GET /status/{job_id}` para monitorear el progreso.
+
+### serie vs serie_id
+
+El campo `serie` que envías es el nombre base (ej. `salon`). El servidor genera un identificador único
+`serie_id = {serie}_{job_id}` (ej. `salon_8f80dca6fe4e`) que aparece en la respuesta como `serie`.
+Usa ese valor en todos los endpoints posteriores (`/{serie}/localize`, `/{serie}/portada`).
+
+### Webhook (opcional)
+
+Si pasas `callback_url`, el servidor hará POST a esa URL en cada cambio de estado:
+```json
+{"job_id": "...", "serie": "...", "status": "training", "error": null}
+```
+""",
+    tags=["Pipeline"],
+)
+async def reconstruct(
+    request: Request,
+    serie: Annotated[str, Form(description="Nombre del espacio (ej: `salon`, `bloque-norte`). Solo letras, números, guiones y guiones bajos.")],
+    fotos: Annotated[list[UploadFile], File(description="Entre 1 y 100 fotos del espacio. Más fotos = mejor reconstrucción pero más tiempo.")],
+    infer_gs: Annotated[bool, Form(description="Si `true`, genera también un archivo 3D Gaussian Splat (`.ply` adicional). Aumenta el tiempo de reconstrucción.")] = False,
+    callback_url: Annotated[str | None, Form(description="URL opcional para recibir notificaciones de cambio de estado vía POST (webhook).")] = None,
+):
+    if not re.fullmatch(r"[a-zA-Z0-9_-]+", serie):
+        raise HTTPException(status_code=422, detail="Nombre de serie inválido")
+    if not (1 <= len(fotos) <= 100):
+        raise HTTPException(status_code=422, detail="Se requieren entre 1 y 100 fotos")
+
+    created_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    job_id = uuid.uuid4().hex[:12]
+    serie_id = f"{serie}_{job_id}"
+    _jobs[job_id] = Job(job_id=job_id, serie=serie_id, created_at=created_at, infer_gs=infer_gs, callback_url=callback_url)
+
+    images_dir = DATA_ROOT / serie_id / "images"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    for i, foto in enumerate(fotos):
+        dest = images_dir / f"{serie_id}__frame{i:06d}.jpg"
+        content = await foto.read()
+        dest.write_bytes(content)
+
+    registry = _load_registry()
+    registry[serie_id] = {"job_id": job_id, "created_at": created_at, "base_name": serie}
+    _save_registry(registry)
+
+    asyncio.create_task(_run_reconstruction(job_id))
+
+    base = str(request.base_url).rstrip("/")
+    return ReconstructResponse(
+        job_id=job_id,
+        status="pending",
+        serie=serie_id,
+        base_name=serie,
+        created_at=created_at,
+        portada_url=f"{base}/{serie_id}/portada",
+    )
+
+
+@app.get(
+    "/status/{job_id}",
+    response_model=StatusResponse,
+    summary="Consultar estado del job",
+    description="""
+Retorna el estado actual del job y el log de progreso completo.
+
+### Ciclo de estados
+
+```
+pending → reconstructing → training → done
+                        ↘ error / timeout
+```
+
+Cuando el estado sea `done`, el PLY está disponible en `GET /download/{job_id}` y
+el localizador en `POST /{serie}/localize`.
+
+Cuando sea `error` o `timeout`, el campo `error` explica la causa.
+""",
+    tags=["Pipeline"],
+    responses={404: {"description": "Job no encontrado"}},
+)
+async def get_status(job_id: Annotated[str, "ID del job retornado por POST /reconstruct"]):
+    job = _jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job no encontrado")
+    return StatusResponse(
+        job_id=job.job_id,
+        serie=job.serie,
+        created_at=job.created_at,
+        status=job.status,
+        progress=job.progress,
+        error=job.error,
+    )
+
+
+@app.get(
+    "/download/{job_id}",
+    summary="Descargar nube de puntos PLY",
+    description="""
+Descarga el archivo PLY generado por la reconstrucción 3D.
+
+Solo disponible cuando el job está en estado `done`. Retorna 409 en cualquier otro estado.
+
+### Tipos de descarga (`tipo`)
+
+| Valor | Archivo | Disponibilidad |
+|---|---|---|
+| `dense` (default) | `{serie}_dense.ply` — nube de puntos densa | Siempre cuando `done` |
+| `splat` | `{serie}_native_splat.ply` — 3D Gaussian Splat | Solo si `infer_gs=true` |
+
+El archivo se transmite en streaming (chunks de 1MB). El header `Content-Disposition`
+incluye el nombre del archivo para facilitar la descarga.
+""",
+    tags=["Pipeline"],
+    responses={
+        200: {"content": {"application/octet-stream": {}}, "description": "Archivo PLY en streaming"},
+        404: {"description": "Job no encontrado o splat no disponible"},
+        409: {"description": "Job no completado aún"},
+    },
+)
+async def download(
+    job_id: str,
+    tipo: Annotated[str, "Tipo de PLY: `dense` (nube densa, default) o `splat` (Gaussian Splat, requiere infer_gs=true)"] = "dense",
+):
+    job = _jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job no encontrado")
+    if job.status != JobStatus.done:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job no completado (estado actual: {job.status})",
+        )
+
+    if tipo == "splat":
+        if not job.infer_gs or job.splat_path is None:
+            raise HTTPException(status_code=404, detail="Splat no disponible (ejecutar con infer_gs=true)")
+        ply_path = job.splat_path
+        filename = f"{job.serie}_native_splat.ply"
+    else:
+        ply_path = job.ply_path
+        filename = f"{job.serie}_dense.ply"
+
+    def iter_file():
+        with open(ply_path, "rb") as f:
+            while chunk := f.read(1024 * 1024):
+                yield chunk
+
+    return StreamingResponse(
+        iter_file(),
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _get_relocalizer(serie: str) -> ACERelocalizer:
+    if serie not in _relocalizer_cache:
+        models_dir = DATA_ROOT / serie / "mapanything" / "ace" / "models"
+        pts = sorted(models_dir.glob("*.pt")) if models_dir.exists() else []
+        if not pts:
+            raise HTTPException(status_code=404, detail=f"No hay modelo ACE para la serie '{serie}'")
+        head_path = pts[-1]
+        if not ACE_ENCODER.exists():
+            raise HTTPException(status_code=500, detail="Encoder ACE no encontrado en el servidor")
+        _relocalizer_cache[serie] = ACERelocalizer(
+            encoder_path=ACE_ENCODER,
+            head_path=head_path,
+        )
+    return _relocalizer_cache[serie]
+
+
+@app.post(
+    "/{serie}/localize",
+    response_model=LocalizeResponse,
+    summary="Estimar posición 6DoF de la cámara",
+    description="""
+Dado una foto de consulta, estima la posición y orientación de la cámara en el espacio
+reconstruido (pose 6DoF — 3 de traslación + 3 de rotación).
+
+Usa el localizador ACE entrenado para la serie. El modelo se carga en memoria en el primer
+request y queda en caché para los siguientes (primer request ~2s, siguientes <100ms).
+
+### El campo `serie`
+
+Usa el `serie` retornado por `POST /reconstruct` (ej. `salon_8f80dca6fe4e`),
+**no** el nombre base (`salon`).
+
+### Resultado
+
+- **`pose`**: matriz 4×4 cámara-a-mundo (C2W). Coordenadas en metros.
+- **`translation`**: vector [x, y, z] extraído de `pose`.
+- **`rotation`**: matriz 3×3 extraída de `pose`.
+- **`inlier_count`**: inliers del RANSAC. Valores altos (>30) indican pose confiable.
+- **`success`**: `false` si RANSAC no encontró suficientes inliers — la pose puede ser inestable.
+
+### focal_length
+
+Si no se especifica, se usa `max(alto, ancho)` de la imagen como estimación.
+Para mejores resultados, pasa la focal length real en píxeles desde los metadatos EXIF.
+""",
+    tags=["Localización"],
+    responses={
+        404: {"description": "No hay modelo ACE entrenado para esta serie"},
+        422: {"description": "Imagen inválida o nombre de serie con caracteres no permitidos"},
+    },
+)
+async def localize(
+    serie: str,
+    foto: Annotated[UploadFile, File(description="Foto de consulta tomada desde el espacio a localizar. JPEG o PNG.")],
+    focal_length: Annotated[float | None, Form(description="Focal length de la cámara en píxeles. Si se omite, se estima como max(alto, ancho) de la imagen.")] = None,
+):
+    if not re.fullmatch(r"[a-zA-Z0-9_-]+", serie):
+        raise HTTPException(status_code=422, detail="Nombre de serie inválido")
+
+    content = await foto.read()
+    img_array = np.frombuffer(content, dtype=np.uint8)
+    image = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+    if image is None:
+        raise HTTPException(status_code=422, detail="No se pudo decodificar la imagen")
+
+    if focal_length is None:
+        h, w = image.shape[:2]
+        focal_length = float(max(h, w))
+
+    loop = asyncio.get_event_loop()
+    try:
+        relocalizer = _get_relocalizer(serie)
+        result = await loop.run_in_executor(
+            None, relocalizer.relocalize, image, focal_length
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en inferencia ACE: {e}")
+
+    return LocalizeResponse(
+        success=result.success,
+        inlier_count=result.inlier_count,
+        translation=result.translation.tolist(),
+        rotation=result.rotation.tolist(),
+        pose=result.pose.tolist(),
+    )
+
+
+@app.get(
+    "/{serie}/portada",
+    summary="Primera imagen de la serie",
+    description="""
+Retorna la primera imagen subida durante `POST /reconstruct` para esta serie.
+
+Útil para mostrar una vista previa del espacio en la UI sin necesidad de descargar el PLY.
+La URL completa de la portada es retornada directamente en la respuesta de `POST /reconstruct`.
+""",
+    tags=["Utilidades"],
+    responses={
+        200: {"content": {"image/jpeg": {}}, "description": "Imagen JPEG"},
+        404: {"description": "No hay imágenes para esta serie"},
+    },
+)
+async def portada(serie: str):
+    if not re.fullmatch(r"[a-zA-Z0-9_-]+", serie):
+        raise HTTPException(status_code=422, detail="Nombre de serie inválido")
+    images_dir = DATA_ROOT / serie / "images"
+    first = images_dir / f"{serie}__frame000000.jpg"
+    if not first.exists():
+        imgs = sorted(images_dir.glob("*.jpg"))
+        if not imgs:
+            raise HTTPException(status_code=404, detail="No hay imágenes para esta serie")
+        first = imgs[0]
+    return FileResponse(first, media_type="image/jpeg")

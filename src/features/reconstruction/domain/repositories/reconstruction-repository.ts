@@ -7,7 +7,7 @@ export type StartJobParams = {
 };
 
 export interface ReconstructionRepository {
-  startJob(params: StartJobParams): Promise<{ jobId: string }>;
+  startJob(params: StartJobParams): Promise<{ jobId: string; serie: string }>;
   getStatus(jobId: string): Promise<ReconstructionJob>;
-  downloadPly(jobId: string, tipo?: 'dense' | 'splat'): Promise<string>;
+  downloadPly(jobId: string, serie: string, tipo?: 'dense' | 'splat'): Promise<string>;
 }
