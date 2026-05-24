@@ -3,6 +3,7 @@ import { DIProvider } from '@/core/di/di-provider';
 import { useTheme } from '@/core/hooks/use-theme';
 import { AuthProvider } from '@/features/auth/presentation/context/auth-context';
 import { ViewerProvider } from '@/features/viewer/presentation/context/viewer-context';
+import { LocalizationProvider } from '@/features/localization/presentation/context/localization-context';
 import { ReconstructionProvider } from '@/features/reconstruction/presentation/context/reconstruction-context';
 import { ScanProvider } from '@/features/scan/presentation/context/scan-context';
 import "@/global.css";
@@ -45,7 +46,8 @@ export default function RootLayout() {
     <DIProvider>
       <AuthProvider>
         <ViewerProvider>
-          <ReconstructionProvider>
+          <LocalizationProvider>
+            <ReconstructionProvider>
             <ScanProvider>
               <ThemeProvider value={theme}>
                 <ToastProvider>
@@ -59,6 +61,7 @@ export default function RootLayout() {
               </ThemeProvider>
             </ScanProvider>
           </ReconstructionProvider>
+          </LocalizationProvider>
         </ViewerProvider>
       </AuthProvider>
     </DIProvider>
