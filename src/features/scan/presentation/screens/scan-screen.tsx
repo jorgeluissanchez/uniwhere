@@ -1,3 +1,13 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/core/components/ui/alert-dialog';
 import { Button } from '@/core/components/ui/button';
 import { Drawer, DrawerContent, DrawerTitle } from '@/core/components/ui/drawer';
 import { Text } from '@/core/components/ui/text';
@@ -22,6 +32,7 @@ export function ScanScreen() {
   const { loadFromPath, loadFile } = useViewer();
 
   const [showDrawer, setShowDrawer] = useState(false);
+  const [showPlyAlert, setShowPlyAlert] = useState(false);
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -72,6 +83,11 @@ export function ScanScreen() {
     } catch {
       // user cancelled picker or load failed — stay on screen
     }
+  };
+
+  const handlePlyAlertConfirm = () => {
+    setShowPlyAlert(false);
+    handleOpenFile();
   };
 
   const handleDelete = async () => {
@@ -138,7 +154,7 @@ export function ScanScreen() {
           <Plus size={26} color="white" />
         </Button>
         <Button
-          onPress={handleOpenFile}
+          onPress={() => setShowPlyAlert(true)}
           variant="secondary"
           className="w-14 h-14 rounded-full shadow-lg items-center justify-center"
         >
@@ -147,6 +163,25 @@ export function ScanScreen() {
       </View>
 
       <NewScanDrawer open={showDrawer} onClose={() => setShowDrawer(false)} />
+
+      <AlertDialog open={showPlyAlert} onOpenChange={setShowPlyAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Solo visualización local</AlertDialogTitle>
+            <AlertDialogDescription>
+              El archivo PLY que selecciones se visualizará únicamente en este dispositivo. No se guardará en la nube ni quedará asociado a ningún escaneo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <Text>Cancelar</Text>
+            </AlertDialogCancel>
+            <AlertDialogAction onPress={handlePlyAlertConfirm}>
+              <Text>Continuar</Text>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Drawer de opciones del scan seleccionado */}
       <Drawer
