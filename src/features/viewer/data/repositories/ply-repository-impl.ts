@@ -24,12 +24,16 @@ export class PlyRepositoryImpl implements PlyRepository {
   private async parse(fileUri: string): Promise<PlyCloud> {
     const { geometry, vertexCount, hasColors } = await this.parser.parse(fileUri, MAX_POINTS);
     geometry.computeBoundingBox();
+    const centeringOffset = new THREE.Vector3();
+    geometry.boundingBox!.getCenter(centeringOffset);   // capture offset BEFORE centering
+    geometry.center();                                   // centers geometry; geometry.boundingBox updated automatically
     return {
       geometry,
       vertexCount,
       originalVertexCount: vertexCount,
       hasColors,
       boundingBox: geometry.boundingBox ?? new THREE.Box3(),
+      centeringOffset,
     };
   }
 }

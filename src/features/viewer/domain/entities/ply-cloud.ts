@@ -6,4 +6,5 @@ export type PlyCloud = {
   originalVertexCount: number;
   hasColors: boolean;
   boundingBox: THREE.Box3;
+  centeringOffset: THREE.Vector3;   // bbox center before centering; used to adjust marker coordinates
 };

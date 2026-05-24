@@ -13,7 +13,6 @@ export function PointCloud3D({ geometry }: Props) {
   useEffect(() => {
     if (!pointsRef.current) return;
 
-    geometry.center();
     geometry.computeBoundingSphere();
 
     const sphere = geometry.boundingSphere!;
