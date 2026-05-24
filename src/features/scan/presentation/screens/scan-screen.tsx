@@ -17,6 +17,7 @@ import { useScan } from '@/features/scan/presentation/context/scan-context';
 import { useViewer } from '@/features/viewer/presentation/context/viewer-context';
 import { File, Paths } from 'expo-file-system';
 import { RelativePathString, useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import { ArrowUpFromLine, Camera, MapPin, Plus, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, View } from 'react-native';
@@ -28,7 +29,7 @@ function displayName(serie: string, jobId: string): string {
 
 export function ScanScreen() {
   const router = useRouter();
-  const { scans, loading, updateScan, deleteScan } = useScan();
+  const { scans, portadas, loading, updateScan, deleteScan } = useScan();
   const { loadFromPath, loadFile } = useViewer();
 
   const [showDrawer, setShowDrawer] = useState(false);
@@ -118,28 +119,37 @@ export function ScanScreen() {
           {scans.map(scan => (
             <View
               key={scan._id}
-              className="bg-white rounded-2xl px-4 py-4 gap-1.5 border border-gray-200 active:opacity-70"
+              className="bg-white rounded-2xl overflow-hidden border border-gray-200 active:opacity-70"
             >
-              <View className="flex-row items-center justify-between">
-                <Text className="text-gray-900 font-semibold text-base flex-1 mr-2" numberOfLines={1}>
-                  {displayName(scan.serie, scan.jobId)}
-                </Text>
-                <View className="bg-blue-50 border border-blue-300 rounded-full px-2.5 py-0.5">
-                  <Text className="text-blue-600 text-xs">{scan.tipo}</Text>
+              {portadas[scan.serie] && (
+                <Image
+                  source={{ uri: portadas[scan.serie] }}
+                  style={{ width: '100%', height: 120 }}
+                  contentFit="cover"
+                />
+              )}
+              <View className="px-4 pt-3 pb-4 gap-1.5">
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-gray-900 font-semibold text-base flex-1 mr-2" numberOfLines={1}>
+                    {displayName(scan.serie, scan.jobId)}
+                  </Text>
+                  <View className="bg-blue-50 border border-blue-300 rounded-full px-2.5 py-0.5">
+                    <Text className="text-blue-600 text-xs">{scan.tipo}</Text>
+                  </View>
                 </View>
+                <Text className="text-gray-400 text-xs">
+                  {scan.createdAt
+                    ? new Date(scan.createdAt).toLocaleDateString('es-CO', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })
+                    : ''}
+                </Text>
+                <Button variant="outline" onPress={() => setSelectedScan(scan)}>
+                  <Text>Ver detalles</Text>
+                </Button>
               </View>
-              <Text className="text-gray-400 text-xs">
-                {scan.createdAt
-                  ? new Date(scan.createdAt).toLocaleDateString('es-CO', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })
-                  : ''}
-              </Text>
-              <Button variant="outline" onPress={() => setSelectedScan(scan)}>
-                <Text>Ver detalles</Text>
-              </Button>
             </View>
           ))}
         </ScrollView>

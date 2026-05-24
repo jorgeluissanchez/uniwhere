@@ -2,6 +2,8 @@ import { LocalPreferencesAsyncStorage } from '@/core/storage/local-preferences-a
 import { Scan } from '@/features/scan/domain/entities/scan';
 import { ScanRemoteDataSource } from '@/features/scan/data/datasources/scan-remote-data-source';
 import { SaveScanParams } from '@/features/scan/domain/repositories/scan-repository';
+import { File, Paths } from 'expo-file-system';
+import { Platform } from 'react-native';
 
 export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
   private readonly dbUrl: string;
@@ -108,6 +110,32 @@ export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
     if (!res.ok) {
       const detail = await res.json().catch(() => ({}));
       throw new Error(detail?.detail ?? `Error al eliminar el escaneo (HTTP ${res.status})`);
+    }
+  }
+
+  async fetchPortada(serie: string): Promise<string | null> {
+    const cacheKey = `portada_cache_${serie}`;
+    const apiUrl = `${process.env.EXPO_PUBLIC_RECONSTRUCTION_API_URL}/${encodeURIComponent(serie)}/portada`;
+
+    if (Platform.OS === 'web') {
+      return apiUrl;
+    }
+
+    // Return cached file if it still exists on disk
+    const cached = await this.prefs.retrieveData<string>(cacheKey);
+    if (cached && new File(cached).exists) return cached;
+
+    // Download and cache
+    try {
+      const res = await fetch(apiUrl, { headers: { 'ngrok-skip-browser-warning': '1' } });
+      if (!res.ok) return null;
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      const dest = new File(Paths.cache, `portada_${serie}.jpg`);
+      dest.write(bytes);
+      await this.prefs.storeData(cacheKey, dest.uri);
+      return dest.uri;
+    } catch {
+      return null;
     }
   }
 }
