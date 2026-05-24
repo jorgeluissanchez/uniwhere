@@ -2,10 +2,10 @@
 
 ## What This Is
 
-UniWhere is a cross-platform mobile/web app (Expo SDK 55 / React Native 0.83) that lets users submit photos for 3D reconstruction, manage their scans, and view the resulting point clouds in a 3D viewer. It connects to **Roble**, an OpenLab platform from Universidad del Norte.
+UniWhere is a cross-platform mobile/web app (Expo SDK 55 / React Native 0.83) that lets users submit photos for 3D reconstruction, manage their scans, view the resulting point clouds in a 3D viewer, and explore AR route visualizations. It connects to **Roble**, an OpenLab platform from Universidad del Norte.
 
-**Package manager:** `pnpm`  
-**Run:** `pnpm start` (Expo dev server)  
+**Package manager:** `pnpm` (requires Node ≥ 20 — use `nvm use 20`)  
+**Run:** `pnpm start` or `npx expo start --port 8083` (Expo dev server)  
 **Platforms:** Android, iOS, Web (static output via Metro)
 
 ---
@@ -38,15 +38,19 @@ src/features/<feature>/
 
 ```
 /
-├── app.json                    Expo config (scheme: "uniwhere")
+├── app.json                    Expo config (scheme: "uniwhere", android.package: com.uninorte.uniwhere)
+├── eas.json                    EAS build profiles (preview → APK, production → AAB)
 ├── package.json                Dependencies
 ├── tailwind.config.js          NativeWind theme
-├── metro.config.js             Metro + NativeWind bundler config
+├── metro.config.js             Metro + NativeWind bundler config + three-shim resolver
+├── three-shim.js               Silences THREE.Clock deprecation; forces single Three.js instance
 ├── tsconfig.json               Path alias: @/ → src/
 │
 ├── assets/
 │   ├── fonts/                  Cal Sans (headings), ABeeZee (body)
-│   └── svgs/                   Inline SVG data as TS strings
+│   ├── svgs/                   Inline SVG data as TS strings
+│   └── 3d_objects/
+│       └── Baguette.glb        3D breadcrumb model used in AR feature
 │
 └── src/
     ├── app/                    Expo Router file-based routing
@@ -54,15 +58,16 @@ src/features/<feature>/
     │   ├── index.tsx           Auth guard: redirects to /scan or /landing
     │   ├── (auth)/             landing, login, signup, forgot-password
     │   └── (app)/
-    │       ├── (tabs)/         scan.tsx, settings.tsx
+    │       ├── (tabs)/         scan.tsx, demo.tsx, settings.tsx
     │       │   └── _layout.tsx Responsive tabs (bottom < 768px, sidebar ≥ 768px)
     │       ├── viewer.tsx      3D PLY viewer
+    │       ├── ar-route.tsx    AR breadcrumb route screen (wraps ARRouteScreen in ARRouteProvider)
     │       └── welcome.tsx     Post-signup welcome
     │
     ├── core/
     │   ├── components/ui/      react-native-reusables component library (NativeWind styled)
     │   ├── constants/
-    │   │   ├── tokens.ts       DI symbols: AuthRemoteDS, AuthRepo, ViewerRepo, …
+    │   │   ├── tokens.ts       DI symbols: AuthRemoteDS, AuthRepo, ViewerRepo, AR_RouteStorageDS, AR_RouteRepo, …
     │   │   └── theme.ts        Navigation theme
     │   ├── di/
     │   │   ├── container.ts    Simple Map-based IoC container
@@ -80,7 +85,8 @@ src/features/<feature>/
         ├── scan/
         ├── reconstruction/
         ├── viewer/
-        └── settings/
+        ├── settings/
+        └── ar/                 AR route feature (see below)
 ```
 
 ---
@@ -168,6 +174,78 @@ Parses and renders PLY point cloud files in 3D.
 
 ---
 
+### ar
+
+Pseudo-AR feature: draws an 8×8 interactive grid route, persists it, and overlays 3D breadcrumb models on the live camera feed.
+
+**Why "pseudo-AR":** True ARKit/ARCore is unavailable in Expo managed workflow. The implementation uses `expo-camera` CameraView as a fullscreen background with `@react-three/fiber` Canvas (`gl={{ alpha: true }}`) overlaid on top.
+
+#### Domain
+
+```
+src/features/ar/domain/
+  entities/route.ts          RoutePoint { row, col }, SavedRoute = RoutePoint[]
+  repositories/route-repository.ts  RouteRepository interface: saveRoute / loadRoute / clearRoute
+```
+
+#### Data
+
+```
+src/features/ar/data/
+  datasources/route-storage-data-source-impl.ts  AsyncStorage key: 'ar_route' (JSON)
+  repositories/route-repository-impl.ts
+```
+
+#### Presentation
+
+```
+src/features/ar/presentation/
+  context/ar-route-context.tsx     ARRouteProvider / useARRoute()
+                                   exposes: route, savedRoute, saving, error,
+                                            addPoint, resetRoute, saveRoute, loadSavedRoute
+  screens/
+    demo-screen.tsx                8×8 touch grid + path drawing + Save/Reset/AR buttons
+    ar-route-screen.tsx            Camera bg + R3F canvas + tilt slider + breadcrumb badge
+  components/
+    grid-matrix.tsx                PanResponder grid; CELL_SIZE=36 exported for PathOverlay
+    path-overlay.tsx               react-native-svg lines between selected grid points
+    breadcrumb-model.tsx           Loads Baguette.glb via fetch + GLTFLoader.parse(); bob animation
+```
+
+#### Utils
+
+```
+src/features/ar/utils/
+  grid-to-world.ts    Maps RoutePoint → [x, y, z] on the X-Z plane (parallel to ground)
+                      col→X, row→Z, fixed Y elevation; SPACING=0.28, DEPTH=-1.8, ELEVATION=-0.4
+```
+
+#### DI tokens
+
+`AR_RouteStorageDS` and `AR_RouteRepo` added to `src/core/constants/tokens.ts`.  
+Wired in `DIProvider`: `RouteStorageDataSourceImpl` → `RouteRepositoryImpl`.
+
+#### GLB asset loading
+
+**Do not use `expo-asset.downloadAsync()`** — Metro 0.83 returns 404 for the `?unstable_path=` URLs it generates.  
+Instead, `BreadcrumbModel` fetches the GLB directly from Metro:
+```
+http://{Constants.expoConfig.hostUri}/assets/assets/3d_objects/Baguette.glb
+```
+Parsed with `GLTFLoader.parse(arrayBuffer, ...)`.
+
+#### AR screen controls
+
+- **OrbitControls** (`r3f-native-orbitcontrols`): touch-based camera orbit. `useControls()` is called inside a dedicated `ARCanvas` component (never conditionally) and `{...events}` is spread on the wrapping View.
+- **Tilt slider**: `PanResponder`-based slider at the bottom of the screen; rotates the entire `<group>` around the X axis (−90° to +90°). No extra dependencies.
+
+#### Navigation
+
+- Tab: `src/app/(app)/(tabs)/demo.tsx` — wraps `DemoScreen` in `ARRouteProvider`
+- Modal: `src/app/(app)/ar-route.tsx` — wraps `ARRouteScreen` in `ARRouteProvider`
+
+---
+
 ### settings
 
 Simple profile screen. No dedicated domain/data layer — reads from `AuthContext`.
@@ -213,7 +291,49 @@ DIProvider
                                             └── PortalHost
 ```
 
-All feature contexts depend on `DIProvider` (via `useDI()`) and most depend on `AuthProvider` (for `loggedUser`).
+`ARRouteProvider` is **not** in the root stack — it is mounted locally in each route that needs it (`demo.tsx`, `ar-route.tsx`).
+
+---
+
+## Metro / Three.js Setup
+
+`metro.config.js` does three things beyond defaults:
+1. Adds `glb` and `gltf` to `assetExts` so Metro serves GLB files.
+2. Forces all `three` imports to resolve through `three-shim.js` (single instance, Clock patch).
+3. Bypasses the empty `exports` map of `@react-three/fiber/native` with a direct `require.resolve`.
+
+`three-shim.js` re-exports Three.js after redefining `THREE.Clock` as a plain property to prevent the deprecation getter from firing at render time.
+
+---
+
+## Building an APK (local)
+
+Requires: Android SDK at `~/Android/Sdk`, JDK 17, Node 20 via nvm.
+
+```bash
+# 1. Switch to Node 20
+nvm use 20
+
+# 2. Generate native Android project (only needed once or after adding native deps)
+npx expo prebuild --platform android --clean
+
+# 3. Set NODE_BINARY so Gradle subprocesses use Node 20
+echo "NODE_BINARY=$(which node)" >> android/local.properties
+
+# 4. Create ~/bin/node wrapper (Gradle ignores shell PATH changes)
+mkdir -p ~/bin
+echo '#!/bin/bash\nexec $(nvm which 20) "$@"' > ~/bin/node && chmod +x ~/bin/node
+
+# 5. Build
+export ANDROID_HOME=~/Android/Sdk
+export PATH=~/bin:$PATH
+cd android && ./gradlew assembleRelease --no-daemon
+
+# Output: android/app/build/outputs/apk/release/app-release.apk (~118 MB)
+# Install: adb install android/app/build/outputs/apk/release/app-release.apk
+```
+
+The `android/` directory is generated — do not commit it. `eas.json` defines `preview` (APK) and `production` (AAB) profiles for cloud builds via `eas build`.
 
 ---
 
@@ -225,3 +345,4 @@ All feature contexts depend on `DIProvider` (via `useDI()`) and most depend on `
 - Contexts throw if used outside their Provider (guard with `if (!ctx) throw`)
 - `LocalPreferencesAsyncStorage` is a singleton — always use `.getInstance()`
 - No test suite exists yet; the app runs on Expo Go / dev builds
+- Expo server port 8081 may conflict with other projects — use `--port 8083`
