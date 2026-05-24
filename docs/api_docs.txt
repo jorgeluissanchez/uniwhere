@@ -490,7 +490,7 @@ async def get_status(job_id: Annotated[str, "ID del job retornado por POST /reco
     description="""
 Descarga el archivo PLY generado por la reconstrucción 3D.
 
-Solo disponible cuando el job está en estado `done`. Retorna 409 en cualquier otro estado.
+Disponible en cuanto el PLY esté generado (estado `training` o `done`). Retorna 409 si la reconstrucción aún no terminó o falló.
 
 ### Tipos de descarga (`tipo`)
 
@@ -516,18 +516,22 @@ async def download(
     job = _jobs.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job no encontrado")
-    if job.status != JobStatus.done:
+    if job.status in (JobStatus.error, JobStatus.timeout):
         raise HTTPException(
             status_code=409,
-            detail=f"Job no completado (estado actual: {job.status})",
+            detail=f"Job terminó con error (estado: {job.status}): {job.error}",
         )
 
     if tipo == "splat":
         if not job.infer_gs or job.splat_path is None:
-            raise HTTPException(status_code=404, detail="Splat no disponible (ejecutar con infer_gs=true)")
+            if job.status == JobStatus.done:
+                raise HTTPException(status_code=404, detail="Splat no disponible (ejecutar con infer_gs=true)")
+            raise HTTPException(status_code=409, detail=f"Splat aún no generado (estado: {job.status})")
         ply_path = job.splat_path
         filename = f"{job.serie}_native_splat.ply"
     else:
+        if job.ply_path is None:
+            raise HTTPException(status_code=409, detail=f"PLY aún no generado (estado: {job.status})")
         ply_path = job.ply_path
         filename = f"{job.serie}_dense.ply"
 
@@ -543,10 +547,130 @@ async def download(
     )
 
 
+def _find_serie_ply(serie: str) -> Path | None:
+    """Busca el PLY principal de la serie. Prefiere versiones pequeñas/procesadas."""
+    candidates = [
+        DATA_ROOT / serie / "nksr" / f"{serie}_dense_nksr_colored.ply",
+        DATA_ROOT / serie / "nksr" / f"{serie}_dense_alined_nksr_colored.ply",
+        DATA_ROOT / serie / "amb3r" / "dense" / "0" / f"{serie}_dense.ply",
+        DATA_ROOT / serie / "mapanything" / "dense" / "0" / f"{serie}_dense.ply",
+        DATA_ROOT / serie / "dense" / "0" / "fused.ply",
+    ]
+    for p in candidates:
+        if p.exists():
+            return p
+    return None
+
+
+def _sphere_points_binary(center: np.ndarray, radius: float, n: int,
+                           r: int, g: int, b: int) -> bytes:
+    """N puntos en esfera de Fibonacci alrededor de center, en formato binary PLY (xyz float32, rgb uint8)."""
+    phi = np.pi * (3.0 - np.sqrt(5.0))
+    idx = np.arange(n, dtype=np.float64)
+    y_f = 1.0 - (idx / max(n - 1, 1)) * 2.0
+    rad = np.sqrt(np.maximum(0.0, 1.0 - y_f * y_f))
+    theta = phi * idx
+    pts = np.stack([np.cos(theta) * rad, y_f, np.sin(theta) * rad], axis=1).astype(np.float32)
+    pts = pts * radius + center.astype(np.float32)
+    dtype = np.dtype([("x", "<f4"), ("y", "<f4"), ("z", "<f4"),
+                      ("red", "u1"), ("green", "u1"), ("blue", "u1")])
+    data = np.empty(n, dtype=dtype)
+    data["x"], data["y"], data["z"] = pts[:, 0], pts[:, 1], pts[:, 2]
+    data["red"], data["green"], data["blue"] = r, g, b
+    return data.tobytes()
+
+
+def _parse_ply_header(f) -> tuple[list[bytes], int, int]:
+    """Lee el header PLY y retorna (header_lines, vertex_count, vertex_stride_bytes).
+
+    Calcula stride sumando el tamaño de cada propiedad del primer element vertex.
+    Solo soporta binary_little_endian con tipos escalares (no listas).
+    """
+    _PROP_SIZES = {
+        "char": 1, "uchar": 1, "int8": 1, "uint8": 1,
+        "short": 2, "ushort": 2, "int16": 2, "uint16": 2,
+        "int": 4, "uint": 4, "int32": 4, "uint32": 4, "float": 4, "float32": 4,
+        "double": 8, "float64": 8, "int64": 8, "uint64": 8,
+    }
+    header_lines: list[bytes] = []
+    vertex_count = 0
+    vertex_stride = 0
+    in_vertex_element = False
+
+    while True:
+        line = f.readline()
+        header_lines.append(line)
+        stripped = line.strip().decode("ascii", "replace")
+        if stripped.startswith("element vertex "):
+            vertex_count = int(stripped.split()[-1])
+            in_vertex_element = True
+        elif stripped.startswith("element ") and not stripped.startswith("element vertex "):
+            in_vertex_element = False
+        elif stripped.startswith("property ") and in_vertex_element:
+            parts = stripped.split()
+            if parts[1] != "list":
+                vertex_stride += _PROP_SIZES.get(parts[1], 4)
+        if stripped == "end_header":
+            break
+
+    return header_lines, vertex_count, vertex_stride
+
+
+def _stream_ply_with_marker(ply_path: Path, marker_bytes: bytes, n_extra: int):
+    """Stream del PLY original con N vértices extra insertados DESPUÉS de los vértices
+    originales y ANTES de los datos de faces/edges, preservando la estructura del archivo.
+    """
+    CHUNK = 4 * 1024 * 1024  # 4 MB
+    with open(ply_path, "rb") as f:
+        header_lines, vertex_count, vertex_stride = _parse_ply_header(f)
+
+        # Parchear vertex count en el header
+        patched: list[bytes] = []
+        for line in header_lines:
+            if line.startswith(b"element vertex "):
+                patched.append(f"element vertex {vertex_count + n_extra}\n".encode())
+            else:
+                patched.append(line)
+        yield b"".join(patched)
+
+        # Stream exactamente los bytes de vértices originales
+        remaining = vertex_count * vertex_stride
+        while remaining > 0:
+            chunk = f.read(min(CHUNK, remaining))
+            if not chunk:
+                break
+            remaining -= len(chunk)
+            yield chunk
+
+        # Insertar nuevos vértices aquí (ANTES de los datos de faces)
+        yield marker_bytes
+
+        # Stream el resto del archivo (faces, edges, etc.)
+        while True:
+            chunk = f.read(CHUNK)
+            if not chunk:
+                break
+            yield chunk
+
+
 def _get_relocalizer(serie: str) -> ACERelocalizer:
     if serie not in _relocalizer_cache:
-        models_dir = DATA_ROOT / serie / "mapanything" / "ace" / "models"
-        pts = sorted(models_dir.glob("*.pt")) if models_dir.exists() else []
+        # Buscar modelos en rutas posibles (nueva estructura, antigua, y output/)
+        candidates = [
+            DATA_ROOT / serie / "mapanything" / "ace" / "models",
+            DATA_ROOT / serie / "ace" / "models",
+        ]
+        pts: list[Path] = []
+        for models_dir in candidates:
+            if models_dir.exists():
+                pts = sorted(models_dir.glob("*.pt"))
+                if pts:
+                    break
+        # Fallback: output/{serie}_ace.pt (modelo entrenado manualmente)
+        if not pts:
+            fallback = DATA_ROOT / "output" / f"{serie}_ace.pt"
+            if fallback.exists():
+                pts = [fallback]
         if not pts:
             raise HTTPException(status_code=404, detail=f"No hay modelo ACE para la serie '{serie}'")
         head_path = pts[-1]
@@ -629,6 +753,135 @@ async def localize(
         translation=result.translation.tolist(),
         rotation=result.rotation.tolist(),
         pose=result.pose.tolist(),
+    )
+
+
+def _build_camera_ply(translation: np.ndarray, rotation: np.ndarray, frustum_depth: float = 1.0) -> bytes:
+    """Construye un PLY con el frustum de cámara: origen + 4 esquinas proyectadas.
+
+    Convención COLMAP/ACE: cámara mira hacia -Z en espacio de cámara.
+    rotation es la matriz 3×3 de la pose c2w (columnas = ejes de cámara en mundo).
+    """
+    right   =  rotation[:, 0]
+    up      = -rotation[:, 1]   # Y de cámara apunta hacia abajo → invertir para up en mundo
+    forward = -rotation[:, 2]   # cámara mira hacia -Z
+
+    hw = frustum_depth * 0.4    # semiancho  (ratio ~4:3)
+    hh = frustum_depth * 0.3    # semialtura
+
+    origin = translation
+    tl = translation + frustum_depth * forward - hw * right + hh * up
+    tr = translation + frustum_depth * forward + hw * right + hh * up
+    bl = translation + frustum_depth * forward - hw * right - hh * up
+    br = translation + frustum_depth * forward + hw * right - hh * up
+
+    vertices = np.array([origin, tl, tr, br, bl], dtype=np.float32)
+    colors = np.array([
+        [255, 220,   0],   # amarillo — centro de cámara
+        [255, 255, 255],   # blanco   — esquinas del frustum
+        [255, 255, 255],
+        [255, 255, 255],
+        [255, 255, 255],
+    ], dtype=np.uint8)
+
+    # 8 aristas: 4 desde origen a esquinas + 4 del rectángulo del frustum
+    edges = np.array([
+        [0, 1], [0, 2], [0, 3], [0, 4],
+        [1, 2], [2, 3], [3, 4], [4, 1],
+    ], dtype=np.int32)
+
+    buf: list[bytes] = [
+        b"ply\n",
+        b"format ascii 1.0\n",
+        f"element vertex {len(vertices)}\n".encode(),
+        b"property float x\nproperty float y\nproperty float z\n",
+        b"property uchar red\nproperty uchar green\nproperty uchar blue\n",
+        f"element edge {len(edges)}\n".encode(),
+        b"property int vertex1\nproperty int vertex2\n",
+        b"end_header\n",
+    ]
+    for v, c in zip(vertices, colors):
+        buf.append(f"{v[0]:.6f} {v[1]:.6f} {v[2]:.6f} {int(c[0])} {int(c[1])} {int(c[2])}\n".encode())
+    for e in edges:
+        buf.append(f"{int(e[0])} {int(e[1])}\n".encode())
+
+    return b"".join(buf)
+
+
+@app.post(
+    "/{serie}/localize-ply",
+    summary="Localizar foto y devolver PLY del frustum de cámara",
+    description="""
+Localiza la foto en el espacio reconstruido (igual que `POST /{serie}/localize`) y devuelve
+un archivo PLY que representa la pose de la cámara como un frustum 3D.
+
+El PLY contiene 5 vértices y 8 aristas:
+- **Vértice 0** (amarillo): posición de la cámara en coordenadas de mundo.
+- **Vértices 1–4** (blanco): esquinas del plano imagen proyectado a `frustum_depth` metros.
+- **Aristas**: 4 rayos desde el origen a las esquinas + 4 lados del rectángulo.
+
+Este PLY puede cargarse directamente junto al PLY de la escena en CloudCompare, Rerun u otro
+visor 3D para visualizar dónde y cómo está mirando la cámara dentro del espacio.
+
+### Parámetro `frustum_depth`
+
+Distancia en metros a la que se proyecta el plano imagen del frustum. Valor por defecto: `1.0`.
+Ajustar según la escala de la escena (interiores pequeños: 0.3–0.5 m; pasillos: 1–2 m).
+""",
+    tags=["Localización"],
+    responses={
+        200: {"content": {"application/octet-stream": {}}, "description": "PLY del frustum de cámara"},
+        404: {"description": "No hay modelo ACE entrenado para esta serie"},
+        422: {"description": "Imagen inválida o nombre de serie con caracteres no permitidos"},
+    },
+)
+async def localize_ply(
+    serie: str,
+    foto: Annotated[UploadFile, File(description="Foto de consulta tomada desde el espacio a localizar. JPEG o PNG.")],
+    focal_length: Annotated[float | None, Form(description="Focal length en píxeles. Si se omite, se estima como max(alto, ancho).")] = None,
+    frustum_depth: Annotated[float, Form(description="Distancia en metros a la que se proyecta el plano imagen del frustum. Default: 1.0.")] = 1.0,
+):
+    if not re.fullmatch(r"[a-zA-Z0-9_-]+", serie):
+        raise HTTPException(status_code=422, detail="Nombre de serie inválido")
+
+    content = await foto.read()
+    img_array = np.frombuffer(content, dtype=np.uint8)
+    image = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+    if image is None:
+        raise HTTPException(status_code=422, detail="No se pudo decodificar la imagen")
+
+    if focal_length is None:
+        h, w = image.shape[:2]
+        focal_length = float(max(h, w))
+
+    loop = asyncio.get_event_loop()
+    try:
+        relocalizer = _get_relocalizer(serie)
+        result = await loop.run_in_executor(
+            None, relocalizer.relocalize, image, focal_length
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en inferencia ACE: {e}")
+
+    ply_path = _find_serie_ply(serie)
+    if ply_path is None:
+        raise HTTPException(status_code=404, detail=f"No se encontró PLY para la serie '{serie}'")
+
+    # Esfera de 800 puntos magenta (255,0,255) a 0.4m de radio — resalta sobre cualquier escena
+    marker = _sphere_points_binary(result.translation, radius=0.4, n=800, r=255, g=0, b=255)
+    filename = f"{serie}_localized.ply"
+
+    return StreamingResponse(
+        _stream_ply_with_marker(ply_path, marker, n_extra=800),
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Inlier-Count": str(result.inlier_count),
+            "X-Localize-Success": str(result.success).lower(),
+            "X-Ply-Source": ply_path.name,
+        },
     )
 
 
