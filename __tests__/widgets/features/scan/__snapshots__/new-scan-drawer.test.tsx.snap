@@ -87,7 +87,7 @@ exports[`NewScanDrawer matches snapshot when open 1`] = `
             className="gap-1.5"
           >
             <Text
-              className="font-abeezee text-sm font-medium leading-none text-gray-600"
+              className="font-abeezee text-sm font-medium leading-none text-muted-foreground"
             >
               Nombre de serie
             </Text>
@@ -105,7 +105,7 @@ exports[`NewScanDrawer matches snapshot when open 1`] = `
             className="gap-2.5"
           >
             <Text
-              className="font-abeezee text-sm font-medium leading-none text-gray-600"
+              className="font-abeezee text-sm font-medium leading-none text-muted-foreground"
             >
               Fotos (
               0
@@ -130,7 +130,7 @@ exports[`NewScanDrawer matches snapshot when open 1`] = `
                 }
               }
               accessible={true}
-              className="group font-cal shrink-0 flex-row items-center justify-center gap-2 rounded-full overflow-visible bg-background active:bg-accent dark:bg-input/30 dark:border-input dark:active:bg-input/50 border shadow-sm shadow-black/5 min-h-14 px-5 py-3 border-dashed border-blue-500"
+              className="group font-cal shrink-0 flex-row items-center justify-center gap-2 rounded-full overflow-visible bg-background active:bg-accent dark:bg-input/30 dark:border-input dark:active:bg-input/50 border shadow-sm shadow-black/5 min-h-14 px-5 py-3 border-dashed border-primary"
               collapsable={false}
               focusable={true}
               onBlur={[Function]}
@@ -145,7 +145,7 @@ exports[`NewScanDrawer matches snapshot when open 1`] = `
               role="button"
             >
               <Text
-                className="text-sm font-medium font-cal group-active:text-accent-foreground text-blue-500"
+                className="text-sm font-medium font-cal group-active:text-accent-foreground text-primary"
               >
                 Seleccionar fotos
               </Text>

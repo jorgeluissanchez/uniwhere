@@ -33,7 +33,7 @@ export function ViewerScreen() {
       {loading ? (
         <>
           <ActivityIndicator size="large" color="#3B82F6" />
-          <Text className="text-gray-400 mt-2">Procesando archivo PLY…</Text>
+          <Text className="text-muted-foreground mt-2">Procesando archivo PLY…</Text>
         </>
       ) : (
         <>

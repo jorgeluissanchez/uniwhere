@@ -107,14 +107,14 @@ export function ARRouteScreen() {
   if (!permission.granted) {
     return (
       <View style={styles.center}>
-        <Text className="text-center text-gray-700 mb-4 text-base">
+        <Text className="text-center text-foreground mb-4 text-base">
           UniWhere necesita acceso a la cámara para la experiencia AR.
         </Text>
         <Button onPress={requestPermission}>
           <Text>Permitir cámara</Text>
         </Button>
         <Button variant="ghost" className="mt-2" onPress={() => router.back()}>
-          <Text className="text-gray-500 text-sm">Volver</Text>
+          <Text className="text-muted-foreground text-sm">Volver</Text>
         </Button>
       </View>
     );
@@ -123,7 +123,7 @@ export function ARRouteScreen() {
   if (!savedRoute || savedRoute.length === 0) {
     return (
       <View style={styles.center}>
-        <Text className="text-center text-gray-700 mb-4 text-base">
+        <Text className="text-center text-foreground mb-4 text-base">
           No hay ruta guardada.{'\n'}Dibuja y guarda una ruta primero.
         </Text>
         <Button onPress={() => router.back()}>

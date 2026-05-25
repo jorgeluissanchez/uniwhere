@@ -48,7 +48,7 @@ export function PhotoPicker({ photos, onPhotosChange, disabled }: Props) {
 
   return (
     <View className="gap-2.5">
-      <Text variant="small" className="text-gray-600">Fotos ({photos.length}/100)</Text>
+      <Text variant="small" className="text-muted-foreground">Fotos ({photos.length}/100)</Text>
 
       {photos.length > 0 && (
         <ScrollView
@@ -85,8 +85,8 @@ export function PhotoPicker({ photos, onPhotosChange, disabled }: Props) {
         </ScrollView>
       )}
 
-      <Button variant="outline" onPress={pick} disabled={disabled} className="border-dashed border-blue-500">
-        <Text className="text-blue-500">
+      <Button variant="outline" onPress={pick} disabled={disabled} className="border-dashed border-primary">
+        <Text className="text-primary">
           {photos.length === 0 ? 'Seleccionar fotos' : 'Agregar más fotos'}
         </Text>
       </Button>
