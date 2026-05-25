@@ -1,6 +1,5 @@
 import '@testing-library/jest-native/extend-expect';
 import { server } from './msw-server';
-import './native-mocks';
 
 // Set env vars used by datasource constructors
 process.env.EXPO_PUBLIC_ROBLE_PROJECT_ID = 'test-project';

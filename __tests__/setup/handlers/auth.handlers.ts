@@ -32,7 +32,7 @@ export const authHandlers = [
     HttpResponse.json({ valid: true }, { status: 200 }),
   ),
 
-  // DB read for user profile (called after login)
+  // DB read for user profile (called after login) — only handles tableName=user
   http.get(`${DB}/read`, ({ request }) => {
     const url = new URL(request.url);
     if (url.searchParams.get('tableName') === 'user') {
@@ -43,6 +43,7 @@ export const authHandlers = [
         role: 'student',
       }]);
     }
-    return HttpResponse.json([]);
+    // passthrough to next handler for other tableName values
+    return undefined;
   }),
 ];

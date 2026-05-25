@@ -1,0 +1,198 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`NewScanDrawer matches snapshot when open 1`] = `
+<View
+  testID="drawer"
+>
+  <View>
+    <View>
+      Nuevo escaneo
+    </View>
+    <View
+      style={
+        {
+          "flex": 1,
+        }
+      }
+    >
+      <View
+        className="flex-row items-center px-5 pt-4 pb-4 border-b border-gray-100"
+      >
+        <View
+          accessibilityState={
+            {
+              "busy": undefined,
+              "checked": undefined,
+              "disabled": undefined,
+              "expanded": undefined,
+              "selected": undefined,
+            }
+          }
+          accessibilityValue={
+            {
+              "max": undefined,
+              "min": undefined,
+              "now": undefined,
+              "text": undefined,
+            }
+          }
+          accessible={true}
+          className="group font-cal shrink-0 flex-row gap-2 overflow-visible bg-secondary active:bg-secondary/80 shadow-sm shadow-black/5 min-h-14 rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
+          collapsable={false}
+          focusable={true}
+          onBlur={[Function]}
+          onClick={[Function]}
+          onFocus={[Function]}
+          onResponderGrant={[Function]}
+          onResponderMove={[Function]}
+          onResponderRelease={[Function]}
+          onResponderTerminate={[Function]}
+          onResponderTerminationRequest={[Function]}
+          onStartShouldSetResponder={[Function]}
+          role="button"
+        >
+          <View
+            color="#374151"
+            size={20}
+          />
+        </View>
+        <Text
+          aria-level="4"
+          className="text-foreground font-abeezee text-xl text-center flex-1"
+          role="heading"
+        >
+          NUEVO ESCANEO
+        </Text>
+        <View
+          style={
+            {
+              "width": 50,
+            }
+          }
+        />
+      </View>
+      <RCTScrollView
+        contentContainerStyle={
+          {
+            "gap": 20,
+            "paddingBottom": 32,
+            "paddingHorizontal": 20,
+            "paddingTop": 20,
+          }
+        }
+        keyboardShouldPersistTaps="handled"
+      >
+        <View>
+          <View
+            className="gap-1.5"
+          >
+            <Text
+              className="font-abeezee text-sm font-medium leading-none text-gray-600"
+            >
+              Nombre de serie
+            </Text>
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              className="bg-muted text-foreground flex h-14 w-full min-w-0 flex-row items-center rounded-2xl px-4 py-1 text-base leading-5 placeholder:text-muted-foreground/50"
+              editable={true}
+              onChangeText={[Function]}
+              placeholder="ej: salon_2024"
+              value=""
+            />
+          </View>
+          <View
+            className="gap-2.5"
+          >
+            <Text
+              className="font-abeezee text-sm font-medium leading-none text-gray-600"
+            >
+              Fotos (
+              0
+              /100)
+            </Text>
+            <View
+              accessibilityState={
+                {
+                  "busy": undefined,
+                  "checked": undefined,
+                  "disabled": false,
+                  "expanded": undefined,
+                  "selected": undefined,
+                }
+              }
+              accessibilityValue={
+                {
+                  "max": undefined,
+                  "min": undefined,
+                  "now": undefined,
+                  "text": undefined,
+                }
+              }
+              accessible={true}
+              className="group font-cal shrink-0 flex-row items-center justify-center gap-2 rounded-full overflow-visible bg-background active:bg-accent dark:bg-input/30 dark:border-input dark:active:bg-input/50 border shadow-sm shadow-black/5 min-h-14 px-5 py-3 border-dashed border-blue-500"
+              collapsable={false}
+              focusable={true}
+              onBlur={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onResponderGrant={[Function]}
+              onResponderMove={[Function]}
+              onResponderRelease={[Function]}
+              onResponderTerminate={[Function]}
+              onResponderTerminationRequest={[Function]}
+              onStartShouldSetResponder={[Function]}
+              role="button"
+            >
+              <Text
+                className="text-sm font-medium font-cal group-active:text-accent-foreground text-blue-500"
+              >
+                Seleccionar fotos
+              </Text>
+            </View>
+          </View>
+          <View
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": true,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            className="opacity-50 group font-cal shrink-0 flex-row items-center justify-center gap-2 rounded-full overflow-visible bg-primary active:bg-primary/90 shadow-sm shadow-black/5 min-h-14 px-5 py-3"
+            collapsable={false}
+            focusable={true}
+            onBlur={[Function]}
+            onClick={[Function]}
+            onFocus={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            role="button"
+          >
+            <Text
+              className="text-sm font-medium font-cal text-white"
+            >
+              Iniciar escaneo
+            </Text>
+          </View>
+        </View>
+      </RCTScrollView>
+    </View>
+  </View>
+</View>
+`;

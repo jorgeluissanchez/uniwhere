@@ -80,7 +80,7 @@ describe('AuthRemoteDataSourceImpl', () => {
       } as Response);
 
       // The datasource reads refreshToken from AsyncStorage; AsyncStorage mock is in-memory
-      const { LocalPreferencesAsyncStorage } = await import('@/core/storage/local-preferences-async-storage');
+      const { LocalPreferencesAsyncStorage } = require('@/core/storage/local-preferences-async-storage');
       await LocalPreferencesAsyncStorage.getInstance().storeData('refreshToken', FAKE_REFRESH);
 
       const result = await ds.refreshToken();

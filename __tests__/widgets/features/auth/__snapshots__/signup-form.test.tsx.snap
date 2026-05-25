@@ -1,0 +1,93 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`SignupForm matches snapshot 1`] = `
+<View
+  className="gap-3"
+>
+  <View>
+    <TextInput
+      autoCapitalize="words"
+      className="bg-muted text-foreground flex h-14 w-full min-w-0 flex-row items-center rounded-2xl px-4 py-1 text-base leading-5 placeholder:text-muted-foreground/50"
+      onChangeText={[Function]}
+      placeholder="Nombre"
+      returnKeyType="next"
+      testID="signup-name-input"
+      value=""
+    />
+  </View>
+  <View>
+    <TextInput
+      autoCapitalize="none"
+      className="bg-muted text-foreground flex h-14 w-full min-w-0 flex-row items-center rounded-2xl px-4 py-1 text-base leading-5 placeholder:text-muted-foreground/50"
+      keyboardType="email-address"
+      onChangeText={[Function]}
+      placeholder="Correo"
+      returnKeyType="next"
+      testID="signup-email-input"
+      value=""
+    />
+  </View>
+  <View>
+    <TextInput
+      className="bg-muted text-foreground flex h-14 w-full min-w-0 flex-row items-center rounded-2xl px-4 py-1 text-base leading-5 placeholder:text-muted-foreground/50"
+      onChangeText={[Function]}
+      placeholder="Contraseña"
+      returnKeyType="next"
+      secureTextEntry={true}
+      testID="signup-password-input"
+      value=""
+    />
+  </View>
+  <View>
+    <TextInput
+      className="bg-muted text-foreground flex h-14 w-full min-w-0 flex-row items-center rounded-2xl px-4 py-1 text-base leading-5 placeholder:text-muted-foreground/50"
+      onChangeText={[Function]}
+      placeholder="Confirmar Contraseña"
+      returnKeyType="next"
+      secureTextEntry={true}
+      testID="signup-confirm-password-input"
+      value=""
+    />
+  </View>
+  <View
+    accessibilityState={
+      {
+        "busy": undefined,
+        "checked": undefined,
+        "disabled": false,
+        "expanded": undefined,
+        "selected": undefined,
+      }
+    }
+    accessibilityValue={
+      {
+        "max": undefined,
+        "min": undefined,
+        "now": undefined,
+        "text": undefined,
+      }
+    }
+    accessible={true}
+    className="group font-cal shrink-0 flex-row items-center justify-center gap-2 rounded-full overflow-visible bg-primary active:bg-primary/90 shadow-sm shadow-black/5 min-h-14 px-5 py-3 mt-2 w-full"
+    collapsable={false}
+    focusable={true}
+    onBlur={[Function]}
+    onClick={[Function]}
+    onFocus={[Function]}
+    onResponderGrant={[Function]}
+    onResponderMove={[Function]}
+    onResponderRelease={[Function]}
+    onResponderTerminate={[Function]}
+    onResponderTerminationRequest={[Function]}
+    onStartShouldSetResponder={[Function]}
+    role="button"
+    testID="signup-button"
+  >
+    <Text
+      className="text-sm font-medium font-cal text-white"
+    >
+      REGISTRARSE
+    </Text>
+  </View>
+</View>
+`;
