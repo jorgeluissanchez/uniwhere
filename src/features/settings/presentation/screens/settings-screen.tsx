@@ -7,8 +7,8 @@ import { RelativePathString, useRouter } from "expo-router";
 import { LogOutIcon, XIcon } from "lucide-react-native";
 import React from "react";
 import { Dimensions, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { SvgXml } from "react-native-svg";
+import { LinearGradient } from 'expo-linear-gradient';
 
 function capitalizeLikeWelcome(name: string): string {
   return name
@@ -80,13 +80,31 @@ export default function SettingsScreen() {
 
       {/* Bottom half — gray with illustration */}
       <View className="flex-1 bg-gray-100 items-center justify-center overflow-hidden">
-        {/* Fade azul sobre gris en el borde superior */}
+        <SvgXml xml={CURIOUS_CUATE_SVG} width={width * 1.1} height={width * 1.1} />
+
+        {/* Inward fade: each gradient goes from gray-100 at the edge to transparent */}
         <LinearGradient
-          colors={["rgba(30,58,138,0.45)", "rgba(30,58,138,0.05)"]}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120 }}
+          colors={['#F3F4F6', 'transparent']}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 80 }}
           pointerEvents="none"
         />
-        <SvgXml xml={CURIOUS_CUATE_SVG} width={width * 1.1} height={width * 1.1} />
+        <LinearGradient
+          colors={['transparent', '#F3F4F6']}
+          style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80 }}
+          pointerEvents="none"
+        />
+        <LinearGradient
+          colors={['#F3F4F6', 'transparent']}
+          start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
+          style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 60 }}
+          pointerEvents="none"
+        />
+        <LinearGradient
+          colors={['transparent', '#F3F4F6']}
+          start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
+          style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 60 }}
+          pointerEvents="none"
+        />
       </View>
     </View>
   );
