@@ -64,7 +64,7 @@ exports[`LoginForm matches snapshot 1`] = `
     testID="login-button"
   >
     <Text
-      className="text-sm font-medium font-cal text-white"
+      className="text-sm font-medium font-cal text-primary-foreground"
     >
       INICIAR SESIÓN
     </Text>

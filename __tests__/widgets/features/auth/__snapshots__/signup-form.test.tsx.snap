@@ -84,7 +84,7 @@ exports[`SignupForm matches snapshot 1`] = `
     testID="signup-button"
   >
     <Text
-      className="text-sm font-medium font-cal text-white"
+      className="text-sm font-medium font-cal text-primary-foreground"
     >
       REGISTRARSE
     </Text>

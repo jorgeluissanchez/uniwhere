@@ -185,7 +185,7 @@ exports[`NewScanDrawer matches snapshot when open 1`] = `
             role="button"
           >
             <Text
-              className="text-sm font-medium font-cal text-white"
+              className="text-sm font-medium font-cal text-primary-foreground"
             >
               Iniciar escaneo
             </Text>
