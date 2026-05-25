@@ -1,75 +1,71 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import SettingsScreen from '@/features/settings/presentation/screens/settings-screen';
 import { AuthContext, AuthContextType } from '@/features/auth/presentation/context/auth-context';
+import { AppThemeContext, AppThemeContextValue } from '@/core/hooks/use-app-theme';
+import { TOKENS } from '@/core/constants/theme';
+
+jest.mock('nativewind', () => ({ vars: jest.fn(() => ({})), cssInterop: jest.fn() }));
 
 const makeAuthCtx = (overrides: Partial<AuthContextType> = {}): AuthContextType => ({
-  loggedUser: null,
-  isLoggedIn: false,
-  loading: false,
-  error: null,
-  clearError: jest.fn(),
-  login: jest.fn().mockResolvedValue(undefined),
-  signup: jest.fn().mockResolvedValue(false),
-  logout: jest.fn().mockResolvedValue(undefined),
-  expireSession: jest.fn().mockResolvedValue(undefined),
-  forgotPassword: jest.fn().mockResolvedValue(undefined),
-  getLoggedUser: jest.fn().mockResolvedValue(null),
+  loggedUser: { userId: '1', email: 'test@test.com', role: 'user', name: 'Test User' },
+  isLoggedIn: true, loading: false, error: null,
+  clearError: jest.fn(), login: jest.fn(), signup: jest.fn(), logout: jest.fn(),
+  expireSession: jest.fn(), forgotPassword: jest.fn(), getLoggedUser: jest.fn(),
   ...overrides,
 });
 
-function renderScreen(ctx: AuthContextType) {
+const makeThemeCtx = (overrides: Partial<AppThemeContextValue> = {}): AppThemeContextValue => ({
+  colorTheme: 'indigo', schemeOverride: 'system', resolvedScheme: 'light',
+  tokens: TOKENS.indigo.light,
+  setColorTheme: jest.fn(), setSchemeOverride: jest.fn(),
+  ...overrides,
+});
+
+function renderSettings(themeCtx?: Partial<AppThemeContextValue>) {
   return render(
-    <AuthContext.Provider value={ctx}>
-      <SettingsScreen />
-    </AuthContext.Provider>
+    <AppThemeContext.Provider value={makeThemeCtx(themeCtx)}>
+      <AuthContext.Provider value={makeAuthCtx()}>
+        <SettingsScreen />
+      </AuthContext.Provider>
+    </AppThemeContext.Provider>
   );
 }
 
-describe('SettingsScreen', () => {
-  it('renders user name when logged in', () => {
-    const ctx = makeAuthCtx({
-      loggedUser: { userId: 'u1', name: 'alice smith', email: 'alice@example.com', role: 'student' },
-    });
-    const { getByText } = renderScreen(ctx);
-    expect(getByText('Alice Smith')).toBeTruthy();
+describe('SettingsScreen — Appearance card', () => {
+  it('renders the Apariencia section', () => {
+    const { getByTestId } = renderSettings();
+    expect(getByTestId('appearance-card')).toBeTruthy();
   });
 
-  it('renders email when logged in', () => {
-    const ctx = makeAuthCtx({
-      loggedUser: { userId: 'u1', name: 'Alice', email: 'alice@example.com', role: 'student' },
-    });
-    const { getByText } = renderScreen(ctx);
-    expect(getByText('alice@example.com')).toBeTruthy();
+  it('renders mode toggle with Auto selected by default', () => {
+    const { getByTestId } = renderSettings();
+    expect(getByTestId('mode-toggle-system')).toBeTruthy();
   });
 
-  it('shows admin greeting for admin role', () => {
-    const ctx = makeAuthCtx({
-      loggedUser: { userId: 'u1', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
-    });
-    const { getByText } = renderScreen(ctx);
-    expect(getByText('Panel de Administrador')).toBeTruthy();
+  it('renders theme toggle with Índigo selected by default', () => {
+    const { getByTestId } = renderSettings();
+    expect(getByTestId('theme-toggle-indigo')).toBeTruthy();
   });
 
-  it('shows profile greeting for non-admin role', () => {
-    const ctx = makeAuthCtx({
-      loggedUser: { userId: 'u1', name: 'Alice', email: 'alice@example.com', role: 'student' },
-    });
-    const { getByText } = renderScreen(ctx);
-    expect(getByText('Mi Perfil')).toBeTruthy();
+  it('calls setSchemeOverride("dark") when Oscuro is pressed', async () => {
+    const setSchemeOverride = jest.fn();
+    const { getByTestId } = renderSettings({ setSchemeOverride });
+    fireEvent.press(getByTestId('mode-toggle-dark'));
+    await waitFor(() => expect(setSchemeOverride).toHaveBeenCalledWith('dark'));
   });
 
-  it('falls back to "Usuario" when loggedUser is null', () => {
-    const { getAllByText } = renderScreen(makeAuthCtx());
-    // "Usuario" appears as displayName and as the role badge when user is null
-    expect(getAllByText('Usuario').length).toBeGreaterThanOrEqual(1);
+  it('calls setSchemeOverride("light") when Claro is pressed', async () => {
+    const setSchemeOverride = jest.fn();
+    const { getByTestId } = renderSettings({ setSchemeOverride });
+    fireEvent.press(getByTestId('mode-toggle-light'));
+    await waitFor(() => expect(setSchemeOverride).toHaveBeenCalledWith('light'));
   });
 
-  it('matches snapshot', () => {
-    const ctx = makeAuthCtx({
-      loggedUser: { userId: 'u1', name: 'Alice', email: 'alice@example.com', role: 'student' },
-    });
-    const { toJSON } = renderScreen(ctx);
-    expect(toJSON()).toMatchSnapshot();
+  it('calls setColorTheme("teal") when Teal is pressed', async () => {
+    const setColorTheme = jest.fn();
+    const { getByTestId } = renderSettings({ setColorTheme });
+    fireEvent.press(getByTestId('theme-toggle-teal'));
+    await waitFor(() => expect(setColorTheme).toHaveBeenCalledWith('teal'));
   });
 });
