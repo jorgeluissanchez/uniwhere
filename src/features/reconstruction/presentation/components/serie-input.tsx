@@ -16,7 +16,7 @@ export function SerieInput({ value, onChange, disabled }: Props) {
 
   return (
     <View className="gap-1.5">
-      <Text variant="small" className="text-gray-600">Nombre de serie</Text>
+      <Text variant="small" className="text-muted-foreground">Nombre de serie</Text>
       <Input
         value={value}
         onChangeText={v => (SERIE_RE.test(v) || v === '') ? onChange(v) : null}

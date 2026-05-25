@@ -60,7 +60,7 @@ export function LocalizationFormScreen() {
   const canSubmit = !!selectedScan && !!image && !submitting;
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-background">
       {/* Header */}
       <View className="flex-row items-center px-5 pt-10 pb-4 gap-3">
         <Button
@@ -70,7 +70,7 @@ export function LocalizationFormScreen() {
         >
           <ChevronLeft size={20} color="#374151" />
         </Button>
-        <Text variant="h3" className="text-gray-900">Localización</Text>
+        <Text variant="h3" className="text-foreground">Localización</Text>
       </View>
 
       <ScrollView
@@ -79,9 +79,9 @@ export function LocalizationFormScreen() {
       >
         {/* Serie info */}
         {selectedScan && (
-          <View className="rounded-2xl bg-blue-50 border border-blue-200 px-4 py-3">
-            <Text className="text-blue-400 text-xs mb-0.5">Serie seleccionada</Text>
-            <Text className="text-blue-700 font-semibold" numberOfLines={1}>
+          <View className="rounded-2xl bg-primary/10 border border-primary/30 px-4 py-3">
+            <Text className="text-primary/70 text-xs mb-0.5">Serie seleccionada</Text>
+            <Text className="text-primary font-semibold" numberOfLines={1}>
               {displayName(selectedScan.serie, selectedScan.jobId)}
             </Text>
           </View>
@@ -89,7 +89,7 @@ export function LocalizationFormScreen() {
 
         {/* Image */}
         <View className="gap-3">
-          <Text className="text-gray-700 font-semibold">Sube una imagen de referencia</Text>
+          <Text className="text-foreground font-semibold">Sube una imagen de referencia</Text>
           <Pressable onPress={submitting ? undefined : pickImage}>
             {image ? (
               <Image
@@ -98,15 +98,15 @@ export function LocalizationFormScreen() {
                 contentFit="cover"
               />
             ) : (
-              <View className="w-full h-32 rounded-2xl border border-dashed border-blue-400 items-center justify-center gap-2">
+              <View className="w-full h-32 rounded-2xl border border-dashed border-primary/50 items-center justify-center gap-2">
                 <ImageIcon size={28} color="#93C5FD" />
-                <Text className="text-blue-400 text-sm">Toca para seleccionar imagen</Text>
+                <Text className="text-primary text-sm">Toca para seleccionar imagen</Text>
               </View>
             )}
           </Pressable>
           {image && !submitting && (
             <Button variant="ghost" onPress={pickImage}>
-              <Text className="text-blue-500 text-sm">Cambiar imagen</Text>
+              <Text className="text-primary text-sm">Cambiar imagen</Text>
             </Button>
           )}
         </View>

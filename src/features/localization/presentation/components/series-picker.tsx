@@ -22,8 +22,8 @@ export function SeriesPicker({ scans, selected, onSelect, disabled }: Props) {
 
   if (downloadedScans.length === 0) {
     return (
-      <View className="rounded-2xl border border-dashed border-gray-300 px-4 py-6 items-center gap-2">
-        <Text className="text-gray-400 text-center text-sm">
+      <View className="rounded-2xl border border-dashed border-border px-4 py-6 items-center gap-2">
+        <Text className="text-muted-foreground text-center text-sm">
           Ninguna serie descargada.{'\n'}Descarga un modelo desde "Mis escaneos" primero.
         </Text>
       </View>
