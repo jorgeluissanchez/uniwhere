@@ -13,9 +13,9 @@ export default function LoginScreen() {
   const { width } = Dimensions.get("window");
 
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-background">
       {/* Illustration */}
-      <View className="w-full items-center bg-blue-50 overflow-hidden" style={{ height: 280 }}>
+      <View className="w-full items-center bg-primary/10 overflow-hidden" style={{ height: 280 }}>
         <SvgXml xml={STUDENTS_RAFIKI_SVG} width={width * 1.18} height={280 * 1.18} preserveAspectRatio="xMidYMid meet" />
       </View>
 
@@ -23,7 +23,7 @@ export default function LoginScreen() {
       <View className="absolute top-10 left-6">
         <Button
           onPress={() => router.replace("/landing")}
-          className="rounded-full w-[50px] h-[50px] p-6 bg-blue-100"
+          className="rounded-full w-[50px] h-[50px] p-6 bg-primary/10"
         >
           <ArrowLeft color="#1D4ED8" height={20} width={20} />
         </Button>

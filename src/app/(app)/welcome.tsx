@@ -23,13 +23,13 @@ export default function StudentWelcomeScreen() {
   }, [loggedUser]);
 
   return (
-    <View className="flex-1 bg-blue-500 overflow-hidden">
+    <View className="flex-1 bg-primary overflow-hidden">
 
       <View className="flex-1 w-full max-w-lg self-center px-6 pt-10 pb-8 justify-between">
-        <Text className="text-lg text-center text-white font-bold">UniWhere</Text>
+        <Text className="text-lg text-center text-primary-foreground font-bold">UniWhere</Text>
 
         <View className="items-center">
-          <Text variant="h1" className="text-blue-100 text-center">
+          <Text variant="h1" className="text-primary-foreground/80 text-center">
             {`Hola ${userName}, ${isAdmin ? "gestiona los espacios" : "explora los espacios universitarios"}`
               .toLowerCase()
               .split(" ")
@@ -37,7 +37,7 @@ export default function StudentWelcomeScreen() {
               .join(" ")}
           </Text>
 
-          <Text className="text-blue-200 text-center mt-6 text-[16px] leading-7 italic">
+          <Text className="text-primary-foreground/70 text-center mt-6 text-[16px] leading-7 italic">
             {isAdmin
               ? "Administra y organiza los espacios de la universidad."
               : "Escanea y descubre los espacios universitarios a través de fotos."}
@@ -49,8 +49,8 @@ export default function StudentWelcomeScreen() {
         </View>
 
         <Button
-          variant="ghost"
-          className="h-16 mb-8 rounded-full w-full bg-white"
+          variant="secondary"
+          className="h-16 mb-8 rounded-full w-full"
           onPress={() =>
             router.replace("/scan" as RelativePathString)
           }
