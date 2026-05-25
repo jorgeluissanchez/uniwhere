@@ -319,7 +319,8 @@ export function ScanScreen() {
                     </Text>
                     <Button
                       variant="outline"
-                      className="mt-auto"
+                      size="sm"
+                      className="mt-auto w-full"
                       onPress={() => setSelectedScan(scan)}
                     >
                       <Text>Ver detalles</Text>
