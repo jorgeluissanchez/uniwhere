@@ -15,6 +15,12 @@ Es la **app móvil oficial** del monorepo UniWhere. Se conecta al backend de rec
 
 ---
 
+## Relación con UniWhere
+
+Este repositorio es un **submódulo Git** del monorepo [UniWhere](https://github.com/cristian10gf/UniWhere). Materializa en el dispositivo móvil las etapas de **captura**, **visualización 3D** y **localización puntual** del pipeline completo (MapAnything → ACE → NKSR → Recast), documentado en el monorepo padre.
+
+Para detalles de endpoints del backend, arquitectura del sistema y validación, ver la documentación en `docs/` del repositorio principal.
+
 ## Funcionalidades principales
 
 ### Autenticación
