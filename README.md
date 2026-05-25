@@ -1,5 +1,8 @@
 # UniWhere — Cliente móvil oficial
 
+[Infome Programacion Movil](Infome.md)
+
+
 Cliente multiplataforma del proyecto **UniWhere** (Universidad del Norte): aplicación de wayfinding indoor que permite capturar entornos, reconstruirlos en 3D, visualizar nubes de puntos, localizarse visualmente dentro de un modelo (ACE) y explorar rutas con una capa AR sobre la cámara del dispositivo.
 
 Es la **app móvil oficial** del monorepo UniWhere. Se conecta al backend de reconstrucción/localización y a **Roble OpenLab** para autenticación y persistencia de datos de usuario.
