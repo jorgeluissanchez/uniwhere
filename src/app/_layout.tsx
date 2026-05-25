@@ -1,5 +1,7 @@
 import ToastProvider from '@/core/components/ui/toast';
 import { DIProvider } from '@/core/di/di-provider';
+import { useAppTheme } from '@/core/hooks/use-app-theme';
+import { AppThemeProvider } from '@/core/providers/app-theme-provider';
 import { useTheme } from '@/core/hooks/use-theme';
 import { AuthProvider } from '@/features/auth/presentation/context/auth-context';
 import { ViewerProvider } from '@/features/viewer/presentation/context/viewer-context';
@@ -15,7 +17,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import React from 'react';
 import { StatusBar } from 'react-native';
 
-export default function RootLayout() {
+function RootLayoutInner() {
+  const { resolvedScheme } = useAppTheme();
   const theme = useTheme();
 
   SplashScreen.preventAutoHideAsync();
@@ -35,36 +38,45 @@ export default function RootLayout() {
   if (!loaded && !error) {
     return null;
   }
+
   return (
     <>
-    <StatusBar 
-          animated={true}
-          barStyle="dark-content"
-          showHideTransition="slide"
-          hidden={true}
-        />
-    <DIProvider>
-      <AuthProvider>
-        <ViewerProvider>
-          <LocalizationProvider>
-            <ReconstructionProvider>
-            <ScanProvider>
-              <ThemeProvider value={theme}>
-                <ToastProvider>
-                  <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="index" options={{ headerShown: false }} />
-                    <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                    <Stack.Screen name="(app)" options={{ headerShown: false }} />
-                  </Stack>
-                </ToastProvider>
-                <PortalHost />
-              </ThemeProvider>
-            </ScanProvider>
-          </ReconstructionProvider>
-          </LocalizationProvider>
-        </ViewerProvider>
-      </AuthProvider>
-    </DIProvider>
+      <StatusBar
+        animated={true}
+        barStyle={resolvedScheme === 'dark' ? 'light-content' : 'dark-content'}
+        showHideTransition="slide"
+        hidden={true}
+      />
+      <DIProvider>
+        <AuthProvider>
+          <ViewerProvider>
+            <LocalizationProvider>
+              <ReconstructionProvider>
+                <ScanProvider>
+                  <ThemeProvider value={theme}>
+                    <ToastProvider>
+                      <Stack screenOptions={{ headerShown: false }}>
+                        <Stack.Screen name="index" options={{ headerShown: false }} />
+                        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                        <Stack.Screen name="(app)" options={{ headerShown: false }} />
+                      </Stack>
+                    </ToastProvider>
+                    <PortalHost />
+                  </ThemeProvider>
+                </ScanProvider>
+              </ReconstructionProvider>
+            </LocalizationProvider>
+          </ViewerProvider>
+        </AuthProvider>
+      </DIProvider>
     </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AppThemeProvider>
+      <RootLayoutInner />
+    </AppThemeProvider>
   );
 }

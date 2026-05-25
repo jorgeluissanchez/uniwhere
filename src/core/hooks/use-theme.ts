@@ -1,14 +1,7 @@
-/**
- * Learn more about light and dark modes:
- * https://docs.expo.dev/guides/color-schemes/
- */
-
-import { NAV_THEME } from '@/core/constants/theme';
-import { useColorScheme } from '@/core/hooks/use-color-scheme';
+import { buildNavTheme } from '@/core/constants/theme';
+import { useAppTheme } from '@/core/hooks/use-app-theme';
 
 export function useTheme() {
-  const scheme = useColorScheme();
-  const theme = scheme === 'unspecified' ? 'light' : scheme;
-
-  return NAV_THEME[theme];
+  const { tokens, resolvedScheme } = useAppTheme();
+  return buildNavTheme(tokens, resolvedScheme);
 }
