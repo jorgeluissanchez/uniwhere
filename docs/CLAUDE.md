@@ -378,32 +378,30 @@ DIProvider
 
 ## Building an APK (local)
 
-Requires: Android SDK at `~/Android/Sdk`, JDK 17, Node 20 via nvm.
+**Use the build script — don't run steps manually:**
 
 ```bash
-# 1. Switch to Node 20
-nvm use 20
-
-# 2. Generate native Android project (only needed once or after adding native deps)
-npx expo prebuild --platform android --clean
-
-# 3. Set NODE_BINARY so Gradle subprocesses use Node 20
-echo "NODE_BINARY=$(which node)" >> android/local.properties
-
-# 4. Create ~/bin/node wrapper (Gradle ignores shell PATH changes)
-mkdir -p ~/bin
-echo '#!/bin/bash\nexec $(nvm which 20) "$@"' > ~/bin/node && chmod +x ~/bin/node
-
-# 5. Build
-export ANDROID_HOME=~/Android/Sdk
-export PATH=~/bin:$PATH
-cd android && ./gradlew assembleRelease --no-daemon
-
+./scripts/build-android.sh
 # Output: android/app/build/outputs/apk/release/app-release.apk (~118 MB)
-# Install: adb install android/app/build/outputs/apk/release/app-release.apk
+# Install: adb install -r android/app/build/outputs/apk/release/app-release.apk
 ```
 
-The `android/` directory is generated — do not commit it.
+The script handles everything: Node 20 activation, `~/bin/node` wrapper (Gradle can't inherit shell PATH), `expo prebuild --clean`, restoring `android/local.properties` (`NODE_BINARY`), appending ProGuard rules, and `./gradlew assembleRelease --no-daemon`.
+
+**Why the script is needed after every `prebuild --clean`:**  
+`--clean` regenerates `android/` from scratch, wiping both `local.properties` (which Gradle needs to find Node 20) and `proguard-rules.pro` (which prevents R8 from stripping Expo internal Kotlin classes).
+
+**ProGuard rules that must always be present** (`android/app/proguard-rules.pro`):
+```
+-keep class expo.modules.** { *; }
+-keep interface expo.modules.** { *; }
+-keepattributes *Annotation*, Signature, RuntimeVisibleAnnotations, EnclosingMethod, InnerClasses
+```
+Without these, release builds crash at launch with `NoClassDefFoundError: TypeDescriptor` because R8 strips `expo.modules.kotlin.types.descriptors.TypeDescriptor` used by expo module definitions at runtime.
+
+**Version compatibility:** All `expo-*` packages must match SDK 55. Run `npx expo install --check` to detect mismatches. A known past issue: `expo-linear-gradient@56` (incompatible with SDK 55) caused the TypeDescriptor crash — must stay at `~55.0.14`.
+
+The `android/` directory is generated — do not commit it. `eas.json` defines `preview` (APK) and `production` (AAB) profiles for cloud builds via `eas build`.
 
 ---
 
