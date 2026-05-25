@@ -46,3 +46,9 @@ app-example
 /ios
 /android
 /assets/svgs/newsvgs
+
+# tooling
+.claude/
+.superpowers/
+coverage/
+docs/superpowers/
