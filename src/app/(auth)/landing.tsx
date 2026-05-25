@@ -12,18 +12,18 @@ export default function LandingScreen() {
 
 const { width } = Dimensions.get("window");
   return (
-    <View className="flex-1 w-full bg-blue-50">
-      <Text className="text-lg p-10 text-center text-blue-500 tracking-wide font-bold">UniWhere</Text>
+    <View className="flex-1 w-full bg-primary/10">
+      <Text className="text-lg p-10 text-center text-primary tracking-wide font-bold">UniWhere</Text>
       <View className="items-center mt-12">
         <SvgXml xml={UNDRAW_WORLD_SVG} width={width} height={200} style={{transform: [{ translateY: width < 450 ? 70 : 0 }] }} />
       </View>
       {width < 450 && <SvgXml width={width} height={width / 4} xml={BG_SVG} className="translate-y-5" /> }
-      <View className="relative bg-white flex-1 px-8 pt-6 pb-12 gap-5 items-center justify-center">
+      <View className="relative bg-background flex-1 px-8 pt-6 pb-12 gap-5 items-center justify-center">
         <View className="gap-2 w-full max-w-lg">
-          <Text variant="h2" className="text-center text-blue-700">
+          <Text variant="h2" className="text-center text-primary">
             Explora los espacios de tu universidad
           </Text>
-          <Text className="text-gray-400 text-center italic">
+          <Text className="text-muted-foreground text-center italic">
             Escanea y descubre los espacios universitarios a través de fotos.
           </Text>
         </View>
