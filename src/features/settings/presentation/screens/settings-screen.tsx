@@ -1,15 +1,14 @@
 import { CURIOUS_CUATE_SVG } from "@/assets/svgs/curiousCuate";
 import { LOW_POLY_GRID_SVG } from "@/assets/svgs/lowPolyGrid";
 import { Button } from "@/core/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Text } from "@/core/components/ui/text";
 import { ToggleGroup, ToggleGroupItem } from "@/core/components/ui/toggle-group";
 import { useAppTheme } from "@/core/hooks/use-app-theme";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { RelativePathString, useRouter } from "expo-router";
-import { LogOutIcon, XIcon } from "lucide-react-native";
-import React from "react";
-import { Dimensions, View } from "react-native";
+import { LogOutIcon, PaletteIcon, XIcon } from "lucide-react-native";
+import React, { useState } from "react";
+import { Dimensions, Pressable, StyleSheet, View } from "react-native";
 import { SvgXml } from "react-native-svg";
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -23,6 +22,7 @@ export default function SettingsScreen() {
   const { tokens, schemeOverride, colorTheme, setSchemeOverride, setColorTheme } = useAppTheme();
   const router = useRouter();
   const { width } = Dimensions.get("window");
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const isAdmin = loggedUser?.role === "admin";
   const greeting = isAdmin ? "Panel de Administrador" : "Mi Perfil";
@@ -76,14 +76,52 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {/* Bottom half — background with illustration + Appearance card */}
-      <View className="flex-1 bg-background items-center justify-between overflow-hidden px-5 pt-4 pb-6">
-        {/* Appearance card */}
-        <Card className="w-full" testID="appearance-card">
-          <CardHeader className="pb-2">
-            <CardTitle>Apariencia</CardTitle>
-          </CardHeader>
-          <CardContent className="gap-4">
+      {/* Bottom half — illustration + FAB */}
+      <View className="flex-1 bg-background overflow-hidden">
+        <View className="flex-1 w-full items-center justify-center overflow-hidden">
+          <SvgXml xml={CURIOUS_CUATE_SVG} width={width * 1.1} height={width * 1.1} />
+          <LinearGradient
+            colors={[bgColor, 'transparent']}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 80 }}
+            pointerEvents="none"
+          />
+          <LinearGradient
+            colors={['transparent', bgColor]}
+            style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80 }}
+            pointerEvents="none"
+          />
+        </View>
+
+        {/* FAB */}
+        <View style={{ position: 'absolute', bottom: 24, right: 24 }}>
+          <Button
+            testID="appearance-card"
+            onPress={() => setDialogOpen(true)}
+            className="w-14 h-14 rounded-full items-center justify-center shadow-lg shadow-black/20"
+          >
+            <PaletteIcon size={24} color={`hsl(${tokens.primaryForeground})`} />
+          </Button>
+        </View>
+      </View>
+
+      {/* Appearance dialog — always mounted so testIDs remain accessible */}
+      <View
+        style={[StyleSheet.absoluteFill, { zIndex: 50, opacity: dialogOpen ? 1 : 0 }]}
+      >
+        {/* Backdrop — only rendered when open to avoid swallowing touches when closed */}
+        {dialogOpen && (
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            className="bg-black/50"
+            onPress={() => setDialogOpen(false)}
+          />
+        )}
+
+        {/* Card */}
+        <View style={styles.dialogContainer}>
+          <View className="bg-background rounded-2xl p-6 w-full border border-border gap-4">
+            <Text className="text-foreground text-lg font-semibold">Apariencia</Text>
+
             {/* Mode control */}
             <View className="gap-1.5">
               <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -134,24 +172,18 @@ export default function SettingsScreen() {
                 </ToggleGroupItem>
               </ToggleGroup>
             </View>
-          </CardContent>
-        </Card>
-
-        {/* Illustration */}
-        <View className="flex-1 w-full items-center justify-center overflow-hidden">
-          <SvgXml xml={CURIOUS_CUATE_SVG} width={width * 1.1} height={width * 1.1} />
-          <LinearGradient
-            colors={[bgColor, 'transparent']}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 80 }}
-            pointerEvents="none"
-          />
-          <LinearGradient
-            colors={['transparent', bgColor]}
-            style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80 }}
-            pointerEvents="none"
-          />
+          </View>
         </View>
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  dialogContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+});
