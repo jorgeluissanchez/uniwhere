@@ -17,8 +17,8 @@ export function DemoScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text variant="h3" className="text-gray-900">Trazar Ruta AR</Text>
-        <Text className="text-gray-400 text-sm">
+        <Text variant="h3" className="text-foreground">Trazar Ruta AR</Text>
+        <Text className="text-muted-foreground text-sm">
           Arrastra el dedo sobre la cuadrícula para dibujar la ruta
         </Text>
       </View>
@@ -32,7 +32,7 @@ export function DemoScreen() {
       </View>
 
       {/* Point counter */}
-      <Text className="text-gray-400 text-sm text-center">
+      <Text className="text-muted-foreground text-sm text-center">
         {route.length === 0
           ? 'Sin puntos seleccionados'
           : `${route.length} punto${route.length !== 1 ? 's' : ''} en la ruta`}
