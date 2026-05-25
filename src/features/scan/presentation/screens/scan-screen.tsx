@@ -9,8 +9,10 @@ import {
   AlertDialogTitle,
 } from '@/core/components/ui/alert-dialog';
 import { Button } from '@/core/components/ui/button';
+import { Card, CardContent } from '@/core/components/ui/card';
 import { Drawer, DrawerContent, DrawerTitle } from '@/core/components/ui/drawer';
 import { Text } from '@/core/components/ui/text';
+import { useAppTheme } from '@/core/hooks/use-app-theme';
 import { Scan } from '@/features/scan/domain/entities/scan';
 import { NewScanDrawer } from '@/features/scan/presentation/components/new-scan-drawer';
 import { useScan } from '@/features/scan/presentation/context/scan-context';
@@ -33,6 +35,9 @@ export function ScanScreen() {
   const { scans, portadas, loading, updateScan, deleteScan } = useScan();
   const { loadFromPath, loadFile } = useViewer();
   const locCtx = useLocalization();
+
+  const { tokens } = useAppTheme();
+  const primaryColor = `hsl(${tokens.primary})`;
 
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPlyAlert, setShowPlyAlert] = useState(false);
@@ -100,28 +105,28 @@ export function ScanScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-background">
       <View className="px-5 pt-10 pb-4">
-        <Text variant="h3" className="text-gray-900">Mis escaneos</Text>
+        <Text variant="h3" className="text-foreground">Mis escaneos</Text>
       </View>
 
       {loading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <ActivityIndicator size="large" color={primaryColor} />
         </View>
       ) : scans.length === 0 ? (
         <View className="flex-1 items-center justify-center gap-4 px-8">
-          <Camera size={48} color="#BFDBFE" />
-          <Text className="text-gray-400 text-center">
+          <Camera size={48} color={primaryColor} />
+          <Text className="text-muted-foreground text-center">
             Aún no tienes escaneos.{'\n'}Toca "+" para comenzar.
           </Text>
         </View>
       ) : (
         <ScrollView className="flex-1" contentContainerClassName="px-5 pb-24 gap-3">
           {scans.map(scan => (
-            <View
+            <Card
               key={scan._id}
-              className="bg-white rounded-2xl overflow-hidden border border-gray-200 active:opacity-70"
+              className="rounded-2xl overflow-hidden active:opacity-70 gap-0 py-0"
             >
               {portadas[scan.serie] && (
                 <Image
@@ -130,16 +135,16 @@ export function ScanScreen() {
                   contentFit="cover"
                 />
               )}
-              <View className="px-4 pt-3 pb-4 gap-1.5">
+              <CardContent className="px-4 pt-3 pb-4 gap-1.5">
                 <View className="flex-row items-center justify-between">
-                  <Text className="text-gray-900 font-semibold text-base flex-1 mr-2" numberOfLines={1}>
+                  <Text className="text-foreground font-semibold text-base flex-1 mr-2" numberOfLines={1}>
                     {displayName(scan.serie, scan.jobId)}
                   </Text>
-                  <View className="bg-blue-50 border border-blue-300 rounded-full px-2.5 py-0.5">
-                    <Text className="text-blue-600 text-xs">{scan.tipo}</Text>
+                  <View className="bg-primary/10 border border-primary/30 rounded-full px-2.5 py-0.5">
+                    <Text className="text-primary text-xs">{scan.tipo}</Text>
                   </View>
                 </View>
-                <Text className="text-gray-400 text-xs">
+                <Text className="text-muted-foreground text-xs">
                   {scan.createdAt
                     ? new Date(scan.createdAt).toLocaleDateString('es-CO', {
                         day: '2-digit',
@@ -151,8 +156,8 @@ export function ScanScreen() {
                 <Button variant="outline" onPress={() => setSelectedScan(scan)}>
                   <Text>Ver detalles</Text>
                 </Button>
-              </View>
-            </View>
+              </CardContent>
+            </Card>
           ))}
         </ScrollView>
       )}
@@ -206,7 +211,7 @@ export function ScanScreen() {
           </DrawerTitle>
 
           <View style={{ flex: 1 }}>
-            <View className="flex-row items-center px-5 pt-4 pb-4 border-b border-gray-100">
+            <View className="flex-row items-center px-5 pt-4 pb-4 border-b border-border">
               <Button
                 variant="secondary"
                 onPress={() => { if (!viewLoading) setSelectedScan(null); }}
@@ -223,7 +228,7 @@ export function ScanScreen() {
             <ScrollView
               contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32, gap: 12 }}
             >
-              <Text className="text-gray-400 text-sm text-center">
+              <Text className="text-muted-foreground text-sm text-center">
                 {selectedScan?.tipo?.toUpperCase()}
                 {selectedScan?.createdAt
                   ? ` · ${new Date(selectedScan.createdAt).toLocaleDateString('es-CO', {
