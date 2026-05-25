@@ -1,8 +1,44 @@
 import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { extendTailwindMerge } from 'tailwind-merge';
+
+const customTwMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      'text-color': [
+        {
+          text: [
+            'foreground', 'card-foreground', 'popover-foreground',
+            'primary-foreground', 'secondary-foreground', 'muted-foreground',
+            'accent-foreground', 'destructive-foreground',
+          ],
+        },
+      ],
+      'font-family': ['font-cal', 'font-abeezee'],
+      'bg-color': [
+        {
+          bg: [
+            'background', 'foreground', 'card', 'card-foreground',
+            'popover', 'popover-foreground', 'primary', 'primary-foreground',
+            'secondary', 'secondary-foreground', 'muted', 'muted-foreground',
+            'accent', 'accent-foreground', 'destructive', 'destructive-foreground',
+            'border', 'input', 'ring',
+          ],
+        },
+      ],
+      'border-color': [
+        {
+          border: [
+            'border', 'input', 'ring', 'primary', 'secondary',
+            'destructive', 'accent', 'muted',
+          ],
+        },
+      ],
+    },
+  },
+});
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+  return customTwMerge(clsx(inputs));
 }
 
 export function isSessionExpiredError(error: unknown): boolean {
