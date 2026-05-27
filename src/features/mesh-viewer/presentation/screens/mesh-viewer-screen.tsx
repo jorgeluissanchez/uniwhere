@@ -33,6 +33,9 @@ export function MeshViewerScreen() {
         <>
           <ActivityIndicator size="large" color="#3B82F6" />
           <Text className="text-muted-foreground mt-3">Cargando modelo…</Text>
+          <Text className="text-muted-foreground text-xs text-center max-w-[260px]">
+            Los archivos grandes pueden tardar varios segundos
+          </Text>
         </>
       ) : (
         <>
