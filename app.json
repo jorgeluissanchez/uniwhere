@@ -85,7 +85,8 @@
       "expo-web-browser",
       "expo-camera",
       "expo-secure-store",
-      "expo-notifications"
+      "expo-notifications",
+      "./plugins/withLargeHeap"
     ],
     "experiments": {
       "typedRoutes": true,
