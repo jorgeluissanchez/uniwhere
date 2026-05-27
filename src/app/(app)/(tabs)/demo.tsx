@@ -1,11 +1,11 @@
-import { ARRouteProvider } from '@/features/ar/presentation/context/ar-route-context';
-import { DemoScreen } from '@/features/ar/presentation/screens/demo-screen';
+import { MeshViewerProvider } from '@/features/mesh-viewer/presentation/context/mesh-viewer-context';
+import { MeshViewerScreen } from '@/features/mesh-viewer/presentation/screens/mesh-viewer-screen';
 import React from 'react';
 
 export default function DemoTab() {
   return (
-    <ARRouteProvider>
-      <DemoScreen />
-    </ARRouteProvider>
+    <MeshViewerProvider>
+      <MeshViewerScreen />
+    </MeshViewerProvider>
   );
 }

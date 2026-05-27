@@ -1,7 +1,7 @@
 import { useAppTheme } from "@/core/hooks/use-app-theme";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { Tabs, useSegments } from "expo-router";
-import { Camera, Cpu, User } from "lucide-react-native";
+import { Box, Camera, User } from "lucide-react-native";
 import React from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 
@@ -147,12 +147,12 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="demo"
         options={{
-          title: "AR Demo",
+          title: "Visor 3D",
           tabBarIcon: ({ focused }) =>
             isSidebar ? (
-              <SidebarIcon Icon={Cpu} {...iconProps(focused)} />
+              <SidebarIcon Icon={Box} {...iconProps(focused)} />
             ) : (
-              <BottomIcon Icon={Cpu} {...iconProps(focused)} />
+              <BottomIcon Icon={Box} {...iconProps(focused)} />
             ),
         }}
       />
