@@ -14,12 +14,16 @@ export class MeshLoaderDataSourceImpl implements MeshLoaderDataSource {
   }
 
   async loadGLTF(uri: string): Promise<THREE.Group> {
-    const res = await fetch(uri);
-    if (!res.ok) throw new Error(`Error al leer el archivo (HTTP ${res.status})`);
-    const buffer = await res.arrayBuffer();
+    // fetch() fails with file:// URIs on Android — use FileSystem base64 read instead
+    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
     const loader = new GLTFLoader();
     return new Promise<THREE.Group>((resolve, reject) =>
-      loader.parse(buffer, '', (gltf: GLTF) => resolve(gltf.scene), reject)
+      loader.parse(bytes.buffer, '', (gltf: GLTF) => resolve(gltf.scene), reject)
     );
   }
 
