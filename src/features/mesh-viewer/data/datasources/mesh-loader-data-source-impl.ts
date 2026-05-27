@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import * as FileSystem from 'expo-file-system';
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { GLTFLoader, GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshLoaderDataSource } from './mesh-loader-data-source';
 
 export class MeshLoaderDataSourceImpl implements MeshLoaderDataSource {
@@ -19,7 +19,7 @@ export class MeshLoaderDataSourceImpl implements MeshLoaderDataSource {
     const buffer = await res.arrayBuffer();
     const loader = new GLTFLoader();
     return new Promise<THREE.Group>((resolve, reject) =>
-      loader.parse(buffer, '', gltf => resolve(gltf.scene), reject)
+      loader.parse(buffer, '', (gltf: GLTF) => resolve(gltf.scene), reject)
     );
   }
 
