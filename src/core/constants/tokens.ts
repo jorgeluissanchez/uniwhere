@@ -15,4 +15,8 @@ export const TOKENS = {
   // localization
   Localization_RemoteDS: Symbol("Localization_RemoteDS"),
   Localization_Repo:     Symbol("Localization_Repo"),
+  // mesh-viewer
+  MeshPickerDS: Symbol('MeshPickerDS'),
+  MeshLoaderDS: Symbol('MeshLoaderDS'),
+  MeshRepo:     Symbol('MeshRepo'),
 } as const;

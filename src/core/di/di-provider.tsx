@@ -19,6 +19,10 @@ import { ScanRepositoryImpl } from "@/features/scan/data/repositories/scan-repos
 import { LocalizationRemoteDataSourceImpl } from "@/features/localization/data/datasources/localization-remote-data-source-impl";
 import { LocalizationRepositoryImpl } from "@/features/localization/data/repositories/localization-repository-impl";
 
+import { MeshFilePickerDataSourceImpl } from "@/features/mesh-viewer/data/datasources/mesh-file-picker-data-source-impl";
+import { MeshLoaderDataSourceImpl } from "@/features/mesh-viewer/data/datasources/mesh-loader-data-source-impl";
+import { MeshRepositoryImpl } from "@/features/mesh-viewer/data/repositories/mesh-repository-impl";
+
 const DIContext = createContext<Container | null>(null);
 
 type DIProviderProps = {
@@ -61,6 +65,14 @@ export function DIProvider({ children, overrides }: DIProviderProps) {
         const localizationRepo = new LocalizationRepositoryImpl(localizationRemoteDS);
         c.register(TOKENS.Localization_RemoteDS, localizationRemoteDS)
          .register(TOKENS.Localization_Repo, localizationRepo);
+
+        // mesh-viewer
+        const meshPickerDS = new MeshFilePickerDataSourceImpl();
+        const meshLoaderDS = new MeshLoaderDataSourceImpl();
+        const meshRepo     = new MeshRepositoryImpl(meshPickerDS, meshLoaderDS);
+        c.register(TOKENS.MeshPickerDS, meshPickerDS)
+         .register(TOKENS.MeshLoaderDS, meshLoaderDS)
+         .register(TOKENS.MeshRepo,     meshRepo);
 
         // Apply test overrides last so they win over real implementations
         overrides?.forEach((value, token) => c.register(token, value));
