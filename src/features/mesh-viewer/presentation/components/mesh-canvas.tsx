@@ -7,14 +7,27 @@ import { MeshModel } from '@/features/mesh-viewer/domain/entities/mesh-model';
 
 interface CameraControllerProps {
   eulerRef: React.MutableRefObject<THREE.Euler>;
+  boundingBox: THREE.Box3;
 }
 
-function CameraController({ eulerRef }: CameraControllerProps) {
+function CameraController({ eulerRef, boundingBox }: CameraControllerProps) {
   const { camera } = useThree();
 
   useEffect(() => {
     camera.rotation.order = 'YXZ';
-  }, [camera]);
+
+    const sphere = new THREE.Sphere();
+    boundingBox.getBoundingSphere(sphere);
+    const r = Math.max(sphere.radius, 0.1);
+
+    camera.position.set(0, 0, r * 2.5);
+
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.near = r * 0.001;
+      camera.far = r * 100;
+      camera.updateProjectionMatrix();
+    }
+  }, [camera, boundingBox]);
 
   useFrame(() => {
     camera.rotation.copy(eulerRef.current);
@@ -42,11 +55,14 @@ interface MeshCanvasProps {
 export function MeshCanvas({ mesh, eulerRef, available }: MeshCanvasProps) {
   return (
     <View style={styles.container}>
-      <Canvas camera={{ fov: 75, position: [0, 1.6, 0], near: 0.01, far: 1000 }}>
+      <Canvas
+        frameloop={available ? 'always' : 'demand'}
+        camera={{ fov: 75 }}
+      >
         <ambientLight intensity={0.8} />
         <directionalLight position={[5, 10, 5]} intensity={1.2} />
         <primitive object={mesh.scene} />
-        <CameraController eulerRef={eulerRef} />
+        <CameraController eulerRef={eulerRef} boundingBox={mesh.boundingBox} />
       </Canvas>
       {!available && <FallbackOverlay />}
     </View>
