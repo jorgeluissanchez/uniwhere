@@ -2,7 +2,7 @@
 
 ## What This Is
 
-UniWhere is a cross-platform mobile/web app (Expo SDK 55 / React Native 0.83) that lets users submit photos for 3D reconstruction, manage their scans, view the resulting point clouds in a 3D viewer, localize themselves within a 3D model via ACE (Absolute Camera Estimation), and explore AR route visualizations. It connects to **Roble**, an OpenLab platform from Universidad del Norte.
+UniWhere is a cross-platform mobile/web app (Expo SDK 55 / React Native 0.83) that lets users submit photos for 3D reconstruction, manage their scans, view the resulting point clouds in a 3D viewer, localize themselves within a 3D model via ACE (Absolute Camera Estimation), and explore 3D mesh files with gyroscope-driven camera rotation. It connects to **Roble**, an OpenLab platform from Universidad del Norte.
 
 **Package manager:** `pnpm` (requires Node ≥ 20 — use `nvm use 20`)  
 **Run:** `pnpm start` or `npx expo start --port 8083` (Expo dev server)  
@@ -72,7 +72,6 @@ src/features/<feature>/
     │       ├── (tabs)/         scan.tsx, demo.tsx, settings.tsx
     │       │   └── _layout.tsx Responsive tabs (bottom < 768px, sidebar ≥ 768px)
     │       ├── viewer.tsx      3D PLY viewer
-    │       ├── ar-route.tsx    AR breadcrumb route screen
     │       ├── localization.tsx        Localization form screen
     │       ├── localization-result.tsx Localization result + 3D marker screen
     │       └── welcome.tsx     Post-signup welcome
@@ -98,9 +97,9 @@ src/features/<feature>/
         ├── scan/
         ├── reconstruction/
         ├── viewer/
-        ├── localization/       ← NEW
-        ├── settings/
-        └── ar/
+        ├── localization/
+        ├── mesh-viewer/
+        └── settings/
 ```
 
 ---
@@ -279,38 +278,61 @@ Profile screen. No dedicated domain/data layer — reads from `AuthContext`.
 
 ---
 
-### ar
+### mesh-viewer
 
-Pseudo-AR feature: 8×8 interactive grid route, persisted, with 3D breadcrumb models overlaid on live camera feed.
+Gyroscope-driven 3D mesh viewer. User picks an OBJ, GLB, or GLTF file from local storage; the file is loaded into Three.js and rendered with a camera that follows device orientation via DeviceMotion (Euler order YXZ).
 
-**Why "pseudo-AR":** True ARKit/ARCore unavailable in Expo managed workflow. Uses `expo-camera` CameraView as fullscreen background with `@react-three/fiber` Canvas (`gl={{ alpha: true }}`) overlaid.
+**Accessed via:** "Visor 3D" tab (demo.tsx), icon `Box` from lucide-react-native.
 
 **Domain:**
-```
-entities/route.ts          RoutePoint { row, col }, SavedRoute = RoutePoint[]
-repositories/route-repository.ts  saveRoute / loadRoute / clearRoute
+```typescript
+MeshModel { scene: THREE.Group; boundingBox: THREE.Box3; }
+IMeshRepository { pickAndLoad(): Promise<MeshModel | null> }  // null = user cancelled
 ```
 
-**Data:** AsyncStorage key `ar_route` (JSON)
+**Data:**
+```
+datasources/
+  mesh-file-picker-data-source.ts          interface: pickFile() → uri (throws 'cancelado')
+  mesh-file-picker-data-source-impl.ts     DocumentPicker, copyToCacheDirectory: true (required for Android content:// URIs)
+  mesh-loader-data-source.ts               interface: loadOBJ / loadGLTF → THREE.Group
+  mesh-loader-data-source-impl.ts          File.text() for OBJ, File.arrayBuffer() for GLB/GLTF
+repositories/mesh-repository-impl.ts       detects ext, calls correct loader, computes bounding box
+```
+
+**CRITICAL — file reading:** Use the new `expo-file-system` `File` class (NOT `readAsStringAsync`, NOT `fetch()`):
+- `fetch(file://)` fails on Android with "Network request failed"
+- `readAsStringAsync` is deprecated
+- Correct: `import { File } from 'expo-file-system'`; then `new File(uri).text()` (OBJ) or `new File(uri).arrayBuffer()` (GLB)
+
+**CRITICAL — large file loading:** `GLTFLoader.parse()` and `OBJLoader.parse()` block the JS thread synchronously. Always yield before calling parse:
+```typescript
+await new Promise<void>(resolve => setTimeout(resolve, 50));
+```
+This lets the loading indicator render before the thread freezes.
 
 **Presentation:**
 ```
-context/ar-route-context.tsx     ARRouteProvider / useARRoute()
-screens/
-  demo-screen.tsx                8×8 touch grid + path drawing + Save/Reset/AR buttons
-  ar-route-screen.tsx            Camera bg + R3F canvas + tilt slider + breadcrumb badge
-components/
-  grid-matrix.tsx                PanResponder grid; CELL_SIZE=36 exported for PathOverlay
-  path-overlay.tsx               react-native-svg lines between selected grid points
-  breadcrumb-model.tsx           Loads Baguette.glb via fetch + GLTFLoader.parse(); bob animation
+context/mesh-viewer-context.tsx   MeshViewerProvider / useMeshViewer()
+  exposes: mesh, loading, error, loadMesh()
+hooks/use-mesh-gyroscope.ts       DeviceMotion subscription; returns eulerRef + available
+  - Uses DeviceMotion from expo-sensors (~55.0.15 for SDK 55)
+  - Captures offset on first event; subsequent events subtract offset
+  - eulerRef is a useRef (no re-renders at 60fps)
+components/mesh-canvas.tsx        R3F Canvas; CameraController reads eulerRef in useFrame
+screens/mesh-viewer-screen.tsx    4 states: idle / loading / error / ready-with-mesh
 ```
 
-**Grid → world mapping:** `col→X, row→Z`, fixed Y elevation. `SPACING=0.28, DEPTH=-1.8, ELEVATION=-0.4`.
+**Gyroscope notes:**
+- `DeviceMotion.setUpdateInterval(16)` for ~60fps target
+- Euler order `'YXZ'` for first-person camera rotation
+- **Emulator limitation:** Android emulator's Extended Controls (3D phone rotation UI) does NOT update the Rotation Vector Sensor. Gyroscope ONLY works on a physical device. Console injection (`sensor set orientation`) updates the sensor but fires a single event — not continuous.
+- On physical device: gyroscope works smoothly; large file parse still freezes JS thread for several seconds but resolves on its own.
 
-**GLB loading:** Do NOT use `expo-asset.downloadAsync()` — Metro 0.83 returns 404.  
-Fetch directly: `http://{Constants.expoConfig.hostUri}/assets/assets/3d_objects/Baguette.glb`
+**DI tokens:** `MeshPickerDS`, `MeshLoaderDS`, `MeshRepo`
 
-**DI tokens:** `AR_RouteStorageDS`, `AR_RouteRepo`
+**Android memory:**  
+Large meshes (134MB GLB) require elevated heap. `plugins/withLargeHeap.js` sets `android:largeHeap="true"` in the manifest via Expo config plugin (registered in `app.json`). Emulator AVD should have at least 7168MB RAM and 512MB VM heap (`~/.android/avd/Pixel_6a.avd/config.ini`).
 
 ---
 
@@ -363,7 +385,7 @@ DIProvider
                                                   └── PortalHost
 ```
 
-`ARRouteProvider` is mounted locally in `demo.tsx` and `ar-route.tsx` only.
+`MeshViewerProvider` is mounted locally in `demo.tsx` only.
 
 ---
 
@@ -399,7 +421,9 @@ The script handles everything: Node 20 activation, `~/bin/node` wrapper (Gradle 
 ```
 Without these, release builds crash at launch with `NoClassDefFoundError: TypeDescriptor` because R8 strips `expo.modules.kotlin.types.descriptors.TypeDescriptor` used by expo module definitions at runtime.
 
-**Version compatibility:** All `expo-*` packages must match SDK 55. Run `npx expo install --check` to detect mismatches. A known past issue: `expo-linear-gradient@56` (incompatible with SDK 55) caused the TypeDescriptor crash — must stay at `~55.0.14`.
+**Version compatibility:** All `expo-*` packages must match SDK 55. Run `npx expo install --check` to detect mismatches. Known past issues:
+- `expo-linear-gradient@56` (incompatible with SDK 55) caused TypeDescriptor crash — must stay at `~55.0.14`
+- `expo-sensors@14.0.2` is wrong for SDK 55 — must be `~55.0.15` (DeviceMotion will silently fail otherwise)
 
 The `android/` directory is generated — do not commit it. `eas.json` defines `preview` (APK) and `production` (AAB) profiles for cloud builds via `eas build`.
 
