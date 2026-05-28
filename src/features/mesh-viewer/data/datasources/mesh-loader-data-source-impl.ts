@@ -9,9 +9,7 @@ export class MeshLoaderDataSourceImpl implements MeshLoaderDataSource {
     const text = await new File(uri).text();
     await new Promise<void>(resolve => setTimeout(resolve, 50));
     const loader = new OBJLoader();
-    const group = loader.parse(text);
-    this.applyFallbackMaterial(group);
-    return group;
+    return loader.parse(text);
   }
 
   async loadGLTF(uri: string): Promise<THREE.Group> {
@@ -23,15 +21,5 @@ export class MeshLoaderDataSourceImpl implements MeshLoaderDataSource {
     return new Promise<THREE.Group>((resolve, reject) =>
       loader.parse(buffer, '', (gltf: GLTF) => resolve(gltf.scene), reject)
     );
-  }
-
-  private applyFallbackMaterial(group: THREE.Group): void {
-    const fallback = new THREE.MeshLambertMaterial({ color: '#cccccc' });
-    group.traverse(child => {
-      if (!(child instanceof THREE.Mesh)) return;
-      if (!child.material || child.material instanceof THREE.MeshBasicMaterial) {
-        child.material = fallback;
-      }
-    });
   }
 }
