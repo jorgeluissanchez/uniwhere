@@ -678,6 +678,48 @@ Submódulo Git en `app/expo-reconstructor/`. Arquitectura **Clean Architecture +
 | `settings` | `SettingsScreen` | Perfil de usuario autenticado | ✅ |
 | Tests unitarios | Jest + MSW + Testing Library | Auth, scan, reconstruction, localization; cobertura ≥ 70 % | ✅ |
 
+#### Capturas de pantalla de la interfaz
+
+Capturas reales de la app oficial en Android (mayo 2026), organizadas por flujo de usuario.
+
+##### Autenticación
+
+**Figura 1.** Pantalla de bienvenida (`landing`): presentación del producto y acceso al flujo de autenticación.
+
+![Pantalla de bienvenida UniWhere — landing con ilustración y botón Iniciar sesión](docs/images/ui-landing-bienvenida.png)
+
+**Figura 2.** Pantalla de inicio de sesión: formulario de credenciales contra Roble API con enlace a registro.
+
+![Pantalla de login — formulario correo y contraseña](docs/images/ui-login-iniciar-sesion.png)
+
+##### Biblioteca de escaneos
+
+**Figura 3.** Tab *Escaneos*: lista de reconstrucciones con miniaturas en caché, etiqueta de tipo (`dense`), FAB de nuevo escaneo (+) y localización (MapPin).
+
+![Biblioteca de escaneos — tarjetas con portadas y acciones Ver detalles](docs/images/ui-biblioteca-escaneos.png)
+
+##### Visor 3D de nubes de puntos
+
+**Figura 4.** Visor PLY interactivo (`PointCloudCanvas`): renderizado Three.js con métricas de rendimiento (puntos, FPS) y controles orbitales.
+
+![Visor 3D — nube de puntos densa de aula con 476 280 puntos a 90 FPS](docs/images/ui-visor-ply-vista-general.png)
+
+**Figura 5.** Vista alternativa del mismo modelo PLY, mostrando la densidad de puntos alrededor del sujeto central del escaneo.
+
+![Visor 3D — reconstrucción densa de salón con patrón de suelo visible](docs/images/ui-visor-ply-vista-detalle.png)
+
+##### Localización visual
+
+**Figura 6.** Resultado de localización ACE: marcador «Usted se encuentra aquí» sobre el modelo PLY con coordenadas estimadas e indicador de confianza (`36 inliers · confiable`).
+
+![Localización ACE — marcador sobre nube de puntos con coordenadas X, Y, Z](docs/images/ui-localizacion-ace-marcador.png)
+
+##### Perfil de usuario
+
+**Figura 7.** Pantalla de perfil (`settings`): datos de sesión Roble, rol de usuario y acciones de cierre de sesión y tema.
+
+![Perfil de usuario — nombre, correo institucional y rol Usuario](docs/images/ui-perfil-usuario.png)
+
 **Flujo de pantallas oficial:**
 
 ```
