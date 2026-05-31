@@ -8,8 +8,8 @@ type ViewerContextType = {
   cloud: PlyCloud | null;
   loading: boolean;
   error: string | null;
-  loadFile: () => Promise<void>;
-  loadFromPath: (fileUri: string) => Promise<void>;
+  loadFile: () => Promise<boolean>;
+  loadFromPath: (fileUri: string) => Promise<boolean>;
 };
 
 const ViewerContext = createContext<ViewerContextType | undefined>(undefined);
@@ -22,14 +22,16 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (fn: () => Promise<PlyCloud>) => {
+  const load = useCallback(async (fn: () => Promise<PlyCloud>): Promise<boolean> => {
     setLoading(true);
     setError(null);
     try {
       setCloud(await fn());
+      return true;
     } catch (e: unknown) {
-      if (e instanceof Error && /cancel/i.test(e.message)) return;
+      if (e instanceof Error && /cancel/i.test(e.message)) return false;
       setError(e instanceof Error ? e.message : 'Error desconocido al cargar el archivo PLY');
+      return false;
     } finally {
       setLoading(false);
     }

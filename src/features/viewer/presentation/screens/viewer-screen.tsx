@@ -8,7 +8,7 @@ import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 export function ViewerScreen() {
-  const { cloud, loading, error, loadFile } = useViewer();
+  const { cloud, loading, error } = useViewer();
   const router = useRouter();
 
   if (cloud) {
@@ -24,11 +24,6 @@ export function ViewerScreen() {
             <ChevronLeft size={20} color="#374151" />
           </Button>
         </View>
-        <View className="absolute bottom-6 right-6">
-          <Button onPress={loadFile} disabled={loading} className="rounded-full px-5">
-            <Text>Abrir</Text>
-          </Button>
-        </View>
       </View>
     );
   }
@@ -38,16 +33,13 @@ export function ViewerScreen() {
       {loading ? (
         <>
           <ActivityIndicator size="large" color="#3B82F6" />
-          <Text className="text-gray-400 mt-2">Procesando archivo PLY…</Text>
+          <Text className="text-muted-foreground mt-2">Procesando archivo PLY…</Text>
         </>
       ) : (
         <>
           {!!error && (
             <Text className="text-destructive text-center text-sm max-w-[300px]">{error}</Text>
           )}
-          <Button onPress={loadFile} disabled={loading} className="px-9">
-            <Text>Abrir archivo PLY</Text>
-          </Button>
         </>
       )}
     </View>

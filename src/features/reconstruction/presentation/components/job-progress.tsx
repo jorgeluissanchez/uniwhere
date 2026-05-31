@@ -4,19 +4,21 @@ import React from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 const STATUS_COLOR: Record<JobStatus, string> = {
-  pending: '#f5a623',
-  running: '#3B82F6',
-  done:    '#27ae60',
-  error:   '#ef4444',
-  timeout: '#ef4444',
+  pending:        '#f5a623',
+  reconstructing: '#3B82F6',
+  training:       '#8B5CF6',
+  done:           '#27ae60',
+  error:          '#ef4444',
+  timeout:        '#ef4444',
 };
 
 const STATUS_LABEL: Record<JobStatus, string> = {
-  pending: 'En espera',
-  running: 'Procesando',
-  done:    'Completado',
-  error:   'Error',
-  timeout: 'Tiempo agotado',
+  pending:        'En espera',
+  reconstructing: 'Reconstruyendo',
+  training:       'Entrenando localizador',
+  done:           'Completado',
+  error:          'Error',
+  timeout:        'Tiempo agotado',
 };
 
 interface Props {
@@ -25,7 +27,7 @@ interface Props {
 
 export function JobProgress({ job }: Props) {
   const color = STATUS_COLOR[job.status];
-  const isActive = job.status === 'pending' || job.status === 'running';
+  const isActive = job.status === 'pending' || job.status === 'reconstructing' || job.status === 'training';
 
   return (
     <View className="gap-2.5">
@@ -47,9 +49,9 @@ export function JobProgress({ job }: Props) {
       )}
 
       {job.progress.length > 0 && (
-        <ScrollView className="bg-gray-100 rounded-lg p-2.5 max-h-40" nestedScrollEnabled>
+        <ScrollView className="bg-muted rounded-lg p-2.5 max-h-40" nestedScrollEnabled>
           {job.progress.map((line, i) => (
-            <Text key={i} className="text-xs text-gray-600 leading-5 font-mono">› {line}</Text>
+            <Text key={i} className="text-xs text-muted-foreground leading-5 font-mono">› {line}</Text>
           ))}
         </ScrollView>
       )}

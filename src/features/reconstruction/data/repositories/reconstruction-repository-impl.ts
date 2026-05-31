@@ -6,7 +6,7 @@ import { ReconstructionRemoteDataSource } from '@/features/reconstruction/data/d
 export class ReconstructionRepositoryImpl implements ReconstructionRepository {
   constructor(private readonly remoteDS: ReconstructionRemoteDataSource) {}
 
-  async startJob(params: StartJobParams): Promise<{ jobId: string }> {
+  async startJob(params: StartJobParams): Promise<{ jobId: string; serie: string }> {
     return this.remoteDS.startJob(params);
   }
 
@@ -14,9 +14,8 @@ export class ReconstructionRepositoryImpl implements ReconstructionRepository {
     return this.remoteDS.getStatus(jobId);
   }
 
-  async downloadPly(jobId: string, tipo: 'dense' | 'splat' = 'dense'): Promise<string> {
-    const job = await this.remoteDS.getStatus(jobId);
-    const fileName = `${job.serie}_${tipo}.ply`;
+  async downloadPly(jobId: string, serie: string, tipo: 'dense' | 'splat' = 'dense'): Promise<string> {
+    const fileName = `${serie}_${tipo}.ply`;
     const url = `${process.env.EXPO_PUBLIC_RECONSTRUCTION_API_URL}/download/${jobId}?tipo=${tipo}`;
 
     const response = await fetch(url);

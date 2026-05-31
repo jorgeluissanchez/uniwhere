@@ -11,7 +11,7 @@ export class ReconstructionRemoteDataSourceImpl implements ReconstructionRemoteD
     this.baseUrl = url;
   }
 
-  async startJob(params: StartJobParams): Promise<{ jobId: string }> {
+  async startJob(params: StartJobParams): Promise<{ jobId: string; serie: string }> {
     const form = new FormData();
     form.append('serie', params.serie);
     if (params.inferGs) { form.append('infer_gs', 'true'); }
@@ -30,7 +30,7 @@ export class ReconstructionRemoteDataSourceImpl implements ReconstructionRemoteD
     const res = await fetch(`${this.baseUrl}/reconstruct`, { method: 'POST', body: form });
     const body = await res.json();
     if (!res.ok) { throw new Error(body.detail ?? `Error HTTP ${res.status}`); }
-    return { jobId: body.job_id };
+    return { jobId: body.job_id, serie: body.serie };
   }
 
   async getStatus(jobId: string): Promise<ReconstructionJob> {

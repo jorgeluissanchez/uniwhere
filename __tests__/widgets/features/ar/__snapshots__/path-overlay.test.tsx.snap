@@ -1,0 +1,26 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`PathOverlay matches snapshot 1`] = `
+<Svg
+  height={288}
+  pointerEvents="none"
+  style={
+    {
+      "left": 0,
+      "position": "absolute",
+      "top": 0,
+    }
+  }
+  width={288}
+>
+  <Line
+    opacity={0.6}
+    stroke="#3B82F6"
+    strokeWidth={2.5}
+    x1={18}
+    x2={54}
+    y1={18}
+    y2={54}
+  />
+</Svg>
+`;

@@ -1,0 +1,80 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`LocalizationResultScreen matches snapshot 1`] = `
+<View
+  className="flex-1 bg-[#0f0f1a]"
+>
+  <View
+    className="absolute top-12 left-5 right-16 flex-row items-center gap-2 bg-black/70 rounded-2xl px-4 py-2.5"
+  >
+    <View
+      className="w-3 h-3 rounded-full bg-red-500"
+    />
+    <Text
+      className="font-abeezee text-white text-sm font-semibold flex-1"
+    >
+      Usted se encuentra aquí
+    </Text>
+  </View>
+  <View
+    className="absolute top-12 right-5"
+  >
+    <View
+      accessibilityState={
+        {
+          "busy": undefined,
+          "checked": undefined,
+          "disabled": undefined,
+          "expanded": undefined,
+          "selected": undefined,
+        }
+      }
+      accessibilityValue={
+        {
+          "max": undefined,
+          "min": undefined,
+          "now": undefined,
+          "text": undefined,
+        }
+      }
+      accessible={true}
+      className="group font-cal shrink-0 flex-row gap-2 overflow-visible bg-secondary active:bg-secondary/80 shadow-sm shadow-black/5 min-h-14 rounded-full w-[44px] h-[44px] items-center justify-center p-0"
+      collapsable={false}
+      focusable={true}
+      onBlur={[Function]}
+      onClick={[Function]}
+      onFocus={[Function]}
+      onResponderGrant={[Function]}
+      onResponderMove={[Function]}
+      onResponderRelease={[Function]}
+      onResponderTerminate={[Function]}
+      onResponderTerminationRequest={[Function]}
+      onStartShouldSetResponder={[Function]}
+      role="button"
+    >
+      <View
+        color="#374151"
+        size={20}
+      />
+    </View>
+  </View>
+  <View
+    className="absolute bottom-8 left-5 right-5 gap-2"
+  >
+    <View
+      className="bg-black/60 rounded-2xl px-4 py-3"
+    >
+      <Text
+        className="text-white text-xs text-center font-mono"
+      >
+        X: 1.000  Y: 2.000  Z: 3.000
+      </Text>
+      <Text
+        className="font-abeezee text-gray-400 text-xs text-center mt-1"
+      >
+        10 inliers · confiable
+      </Text>
+    </View>
+  </View>
+</View>
+`;

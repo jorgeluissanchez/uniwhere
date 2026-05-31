@@ -7,6 +7,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 
 type ScanContextType = {
   scans: Scan[];
+  portadas: Record<string, string>;   // serie → local image URI
   loading: boolean;
   error: string | null;
   saveScan: (params: SaveScanParams) => Promise<void>;
@@ -23,8 +24,18 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
   const { loggedUser } = useAuth();
 
   const [scans, setScans] = useState<Scan[]>([]);
+  const [portadas, setPortadas] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const loadPortadasInBackground = useCallback((scansToCheck: Scan[]) => {
+    // Fire-and-forget: update portadas state as each one resolves
+    scansToCheck.forEach(scan => {
+      repo.fetchPortada(scan.serie).then(uri => {
+        if (uri) setPortadas(prev => ({ ...prev, [scan.serie]: uri }));
+      }).catch(() => {});
+    });
+  }, [repo]);
 
   const refresh = useCallback(async () => {
     if (!loggedUser?.userId) return;
@@ -33,18 +44,23 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await repo.getScansByUser(loggedUser.userId);
       setScans(result.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '')));
+      loadPortadasInBackground(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al cargar los escaneos');
     } finally {
       setLoading(false);
     }
-  }, [repo, loggedUser?.userId]);
+  }, [repo, loggedUser?.userId, loadPortadasInBackground]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
   const saveScan = useCallback(async (params: SaveScanParams) => {
     await repo.saveScan(params);
     await refresh();
+    // Also try to fetch portada for the new scan immediately
+    repo.fetchPortada(params.serie).then(uri => {
+      if (uri) setPortadas(prev => ({ ...prev, [params.serie]: uri }));
+    }).catch(() => {});
   }, [repo, refresh]);
 
   const updateScan = useCallback(async (scanId: string, localUri: string) => {
@@ -58,7 +74,7 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
   }, [repo]);
 
   return (
-    <ScanContext.Provider value={{ scans, loading, error, saveScan, updateScan, deleteScan, refresh }}>
+    <ScanContext.Provider value={{ scans, portadas, loading, error, saveScan, updateScan, deleteScan, refresh }}>
       {children}
     </ScanContext.Provider>
   );

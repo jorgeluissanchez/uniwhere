@@ -1,0 +1,79 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`JobProgress matches snapshot for done job 1`] = `
+<View
+  className="gap-2.5"
+>
+  <View
+    className="flex-row items-center gap-2"
+  >
+    <View
+      className="rounded-xl px-2.5 py-0.5 border"
+      style={
+        {
+          "backgroundColor": "#27ae6022",
+          "borderColor": "#27ae60",
+        }
+      }
+    >
+      <Text
+        className="text-foreground font-abeezee text-xs font-bold"
+        style={
+          {
+            "color": "#27ae60",
+          }
+        }
+      >
+        Completado
+      </Text>
+    </View>
+    <Text
+      className="font-abeezee text-xs text-muted-foreground"
+    >
+      #
+      job-abcd
+    </Text>
+  </View>
+</View>
+`;
+
+exports[`JobProgress matches snapshot for pending job 1`] = `
+<View
+  className="gap-2.5"
+>
+  <View
+    className="flex-row items-center gap-2"
+  >
+    <ActivityIndicator
+      color="#f5a623"
+      size="small"
+    />
+    <View
+      className="rounded-xl px-2.5 py-0.5 border"
+      style={
+        {
+          "backgroundColor": "#f5a62322",
+          "borderColor": "#f5a623",
+        }
+      }
+    >
+      <Text
+        className="text-foreground font-abeezee text-xs font-bold"
+        style={
+          {
+            "color": "#f5a623",
+          }
+        }
+      >
+        En espera
+      </Text>
+    </View>
+    <Text
+      className="font-abeezee text-xs text-muted-foreground"
+    >
+      #
+      job-abcd
+    </Text>
+  </View>
+</View>
+`;

@@ -27,12 +27,12 @@ export function NewScanDrawer({ open, onClose }: Props) {
 
   const handleSubmit = async () => {
     try {
-      const jobId = await startJob({ serie: serie.trim(), photos, inferGs: false });
+      const { jobId, serie: serieId } = await startJob({ serie: serie.trim(), photos, inferGs: false });
       if (loggedUser) {
         await saveScan({
           userId:   loggedUser.userId,
           jobId,
-          serie:    serie.trim(),
+          serie:    serieId,
           tipo:     'dense',
           localUri: '',
         });

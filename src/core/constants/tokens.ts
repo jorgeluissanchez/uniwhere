@@ -12,4 +12,10 @@ export const TOKENS = {
   // scan
   ScanRemoteDS: Symbol("ScanRemoteDS"),
   ScanRepo:     Symbol("ScanRepo"),
+  // ar
+  AR_RouteStorageDS: Symbol("AR_RouteStorageDS"),
+  AR_RouteRepo:      Symbol("AR_RouteRepo"),
+  // localization
+  Localization_RemoteDS: Symbol("Localization_RemoteDS"),
+  Localization_Repo:     Symbol("Localization_Repo"),
 } as const;

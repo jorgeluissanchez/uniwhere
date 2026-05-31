@@ -1,8 +1,9 @@
 'use strict';
-// Shim that re-exports Three.js but silences the THREE.Clock deprecation warning.
-// @react-three/fiber uses THREE.Clock internally; three.js r176+ defines it via a
-// deprecation getter that logs every time it is accessed. We read the class once
-// (silently), then redefine it as a plain property so r3f never triggers the warning.
+// Silences two cosmetic warnings from expo-gl + three.js:
+// 1. THREE.Clock deprecation — r3f uses it internally; redefine as plain property
+//    so the deprecation getter never fires at render time.
+// 2. EXGL gl.pixelStorei() — expo-gl doesn't support several pixel store params
+//    that three.js sets unconditionally; suppress those specific LOG lines.
 
 const THREE = require('./node_modules/three/build/three.cjs');
 
