@@ -989,13 +989,6 @@ cd app/flutter-ar && flutter test
 2. Envío continuo de `frame_ingest` con respuesta `pose_update`.
 3. Selección de destino → `route_plan` → instrucciones `ar_instruction`.
 
-Validación de artefactos del pipeline:
-
-```bash
-uv run preprocesamiento/scripts/validation/step1_artifact_audit.py
-uv run preprocesamiento/scripts/validation/step2_pose_intrinsics_validation.py
-```
-
 ### 10.3 Validación de Localización en Campus
 
 Se realizaron pruebas de precisión del sistema ACE en el Bloque I y Bloque C de la Universidad del Norte. En ambos bloques se obtuvieron errores de posicionamiento **inferiores a 1 metro**, cumpliendo RNF-02. Las pruebas se ejecutaron con el pipeline offline completo sobre 1200 frames capturados en recorrido por los corredores principales.
