@@ -1,4 +1,3 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 /**
@@ -15,13 +14,57 @@ import { Platform } from 'react-native';
 
 const ANDROID_CHANNEL_ID = 'model-downloads';
 
+// `AndroidImportance` está en NotificationChannelManager.types, no en el
+// re-export raíz de expo-notifications. Como solo nos importa el valor del
+// default (5), lo dejamos como literal para no depender de un deep path.
+const ANDROID_IMPORTANCE_DEFAULT = 5;
+
+// Las notificaciones push remotas fueron removidas de Expo Go a partir del
+// SDK 53. Además del warning audible, parte de la binary de notificaciones
+// asume APIs nativas que Expo Go no expone en SDK 55+. Skip total en Expo Go
+// para no envenenar la consola ni romper el módulo.
+//
+// Como el warning se emite en *import-time* (al evaluar `expo-notifications`,
+// un side-effect de `getExpoPushTokenAsync.js`), el import aquí es dinámico
+// y memoizado: la primera llamada carga el módulo (y emite el warning),
+// después lo reutilizamos. Si estamos en Expo Go, ni siquiera llegamos a
+// importarlo.
+let isExpoGo: boolean | undefined;
+async function detectExpoGo(): Promise<boolean> {
+  if (isExpoGo !== undefined) return isExpoGo;
+  try {
+    const expo = await import('expo');
+    isExpoGo = !!expo.isRunningInExpoGo?.();
+  } catch {
+    isExpoGo = false;
+  }
+  return isExpoGo;
+}
+
+type NotificationsApi = typeof import('expo-notifications');
+let NotificationsMod: NotificationsApi | null | undefined;
+async function getNotifications(): Promise<NotificationsApi | null> {
+  if (NotificationsMod !== undefined) return NotificationsMod;
+  if (await detectExpoGo()) {
+    NotificationsMod = null;
+    return null;
+  }
+  NotificationsMod = await import('expo-notifications');
+  return NotificationsMod;
+}
+
 let configured = false;
 
 /**
  * Idempotente: se puede llamar en cada descarga sin efectos duplicados.
+ *
+ * En Expo Go se vuelve no-op: la descarga sigue funcionando; solo perdemos
+ * el aviso de sistema.
  */
 export async function configureModelDownloadNotifications(): Promise<void> {
   if (configured) return;
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
   configured = true;
 
   // Sin esto, una notificación que llega con la app en primer plano no se
@@ -38,7 +81,7 @@ export async function configureModelDownloadNotifications(): Promise<void> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
       name: 'Descargas de modelos',
-      importance: Notifications.AndroidImportance.DEFAULT,
+      importance: ANDROID_IMPORTANCE_DEFAULT,
     });
   }
 }
@@ -50,6 +93,8 @@ export async function configureModelDownloadNotifications(): Promise<void> {
  * sistema pregunte en un momento en que el permiso tiene sentido para el usuario.
  */
 export async function ensureNotificationPermission(): Promise<boolean> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return false;
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return true;
   if (!current.canAskAgain) return false;
@@ -72,6 +117,8 @@ export async function ensureNotificationPermission(): Promise<boolean> {
  * background transfer nativo.
  */
 export async function notifyModelReady(serie: string, _onOpen?: () => void): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
   await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Modelo listo',
