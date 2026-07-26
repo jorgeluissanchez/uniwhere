@@ -60,12 +60,26 @@ function abortError(): Error {
   return err;
 }
 
+export type DownloadProgress = {
+  /** Bytes recibidos hasta ahora. Siempre disponible. */
+  loaded: number;
+  /** Tamaño total, o `null` si la respuesta no lo declara. */
+  total: number | null;
+  /** Fracción 0..1, o `null` si no se conoce el total. */
+  ratio: number | null;
+};
+
 type DownloadOptions = {
   headers?: Record<string, string>;
   signal?: AbortSignal;
-  /** Fracción 0..1, o `null` si la respuesta no declara tamaño. */
-  onProgress?: (ratio: number | null) => void;
+  onProgress?: (progress: DownloadProgress) => void;
 };
+
+/**
+ * Cada cuántos bytes se notifica cuando no hay porcentaje. Sin total no se puede
+ * limitar el ritmo por punto porcentual, y el endpoint emite chunks de 1MB.
+ */
+const PROGRESS_BYTES_STEP = 512 * 1024;
 
 /**
  * Descarga con progreso.
@@ -90,24 +104,37 @@ export function downloadWithProgress(url: string, options: DownloadOptions = {})
     const cleanup = () => signal?.removeEventListener('abort', onAbort);
 
     // Los eventos llegan muy seguidos; solo se notifica al cruzar un punto
-    // porcentual para no disparar un render por cada chunk.
+    // porcentual (o un tramo de bytes) para no disparar un render por chunk.
     let lastPercent = -1;
+    let lastLoaded = -1;
     xhr.onprogress = (event) => {
       if (!onProgress) return;
-      // Sin Content-Length (respuesta comprimida o en streaming) no hay
-      // porcentaje que mostrar.
-      if (!event.lengthComputable || event.total <= 0) { onProgress(null); return; }
-      const percent = Math.floor((event.loaded / event.total) * 100);
+      const loaded = event.loaded ?? 0;
+
+      // Sin Content-Length (respuesta comprimida, o en streaming como hace
+      // /download) no hay porcentaje posible, pero los bytes recibidos sí son
+      // información real que la UI puede mostrar.
+      if (!event.lengthComputable || event.total <= 0) {
+        if (lastLoaded >= 0 && loaded - lastLoaded < PROGRESS_BYTES_STEP) return;
+        lastLoaded = loaded;
+        onProgress({ loaded, total: null, ratio: null });
+        return;
+      }
+
+      const percent = Math.floor((loaded / event.total) * 100);
       if (percent === lastPercent) return;
       lastPercent = percent;
-      onProgress(event.loaded / event.total);
+      onProgress({ loaded, total: event.total, ratio: loaded / event.total });
     };
 
     xhr.onload = () => {
       cleanup();
       if (xhr.status >= 200 && xhr.status < 300) {
-        onProgress?.(1);
-        resolve(xhr.response as ArrayBuffer);
+        const buffer = xhr.response as ArrayBuffer;
+        // Al terminar el tamaño ya es conocido aunque nunca hubiera header.
+        const size = buffer?.byteLength ?? 0;
+        onProgress?.({ loaded: size, total: size, ratio: 1 });
+        resolve(buffer);
       } else {
         reject(new HttpStatusError(xhr.status));
       }

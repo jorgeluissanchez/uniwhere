@@ -85,19 +85,38 @@ describe('downloadWithProgress', () => {
     xhr.onload?.();
 
     await promise;
-    expect(onProgress.mock.calls.map((c) => c[0])).toEqual([0.5, 0.75, 1]);
+    expect(onProgress.mock.calls.map((c) => c[0].ratio)).toEqual([0.5, 0.75, 1]);
+    expect(onProgress).toHaveBeenNthCalledWith(1, { loaded: 50, total: 100, ratio: 0.5 });
   });
 
-  it('informa null cuando no hay Content-Length', async () => {
+  it('sin Content-Length informa bytes y ratio null', async () => {
     const onProgress = jest.fn();
     const promise = downloadWithProgress('http://x/m.ply', { onProgress });
 
+    const MB = 1024 * 1024;
     const xhr = FakeXHR.last;
-    xhr.onprogress?.({ lengthComputable: false, loaded: 50, total: 0 });
+    xhr.onprogress?.({ lengthComputable: false, loaded: MB, total: 0 });
+    xhr.onprogress?.({ lengthComputable: false, loaded: MB + 1, total: 0 }); // mismo tramo
+    xhr.onprogress?.({ lengthComputable: false, loaded: 2 * MB, total: 0 });
+
+    expect(onProgress.mock.calls.map((c) => c[0])).toEqual([
+      { loaded: MB, total: null, ratio: null },
+      { loaded: 2 * MB, total: null, ratio: null },
+    ]);
+
     xhr.onload?.();
+    await promise;
+  });
+
+  it('al terminar informa el tamaño real aunque no hubiera Content-Length', async () => {
+    const onProgress = jest.fn();
+    const promise = downloadWithProgress('http://x/m.ply', { onProgress });
+
+    FakeXHR.last.response = new ArrayBuffer(2048);
+    FakeXHR.last.onload?.();
 
     await promise;
-    expect(onProgress).toHaveBeenCalledWith(null);
+    expect(onProgress).toHaveBeenCalledWith({ loaded: 2048, total: 2048, ratio: 1 });
   });
 
   it('envía los headers recibidos', async () => {
