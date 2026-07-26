@@ -1,3 +1,5 @@
+import { reconstructionApiHeaders } from '@/core/lib/api-headers';
+import { isPlyCached, modelDownloadUrl } from '@/core/lib/ply-cache';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,8 +13,9 @@ import {
 import { Button } from '@/core/components/ui/button';
 import { Card, CardContent } from '@/core/components/ui/card';
 import { Drawer, DrawerContent, DrawerTitle } from '@/core/components/ui/drawer';
+import { Icon } from '@/core/components/ui/icon';
+import { Spinner } from '@/core/components/ui/spinner';
 import { Text } from '@/core/components/ui/text';
-import { useAppTheme } from '@/core/hooks/use-app-theme';
 import { Scan } from '@/features/scan/domain/entities/scan';
 import { NewScanDrawer } from '@/features/scan/presentation/components/new-scan-drawer';
 import { useScan } from '@/features/scan/presentation/context/scan-context';
@@ -22,12 +25,37 @@ import { RelativePathString, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { useLocalization } from '@/features/localization/presentation/context/localization-context';
 import { ArrowUpFromLine, Camera, Plus, X } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { AppState, Platform, ScrollView, useWindowDimensions, View } from 'react-native';
+import {
+  configureModelDownloadNotifications,
+  ensureNotificationPermission,
+  notifyModelReady,
+} from '@/core/notifications/model-download-notifications';
 
 function displayName(serie: string, jobId: string): string {
   const suffix = `_${jobId}`;
   return serie.endsWith(suffix) ? serie.slice(0, -suffix.length) : serie;
+}
+
+const GRID_GAP = 12;
+
+/**
+ * Fases de "Ver Modelo". El drawer permanece abierto durante todas: se cierra
+ * solo al navegar al visor, o cuando el usuario cancela.
+ */
+type ViewPhase = 'idle' | 'downloading' | 'preparing';
+
+const VIEW_PHASE_LABEL: Record<Exclude<ViewPhase, 'idle'>, string> = {
+  downloading: 'Descargando modelo…',
+  preparing: 'Preparando vista…',
+};
+
+function columnsForWidth(width: number): number {
+  if (width < 640) return 1;
+  if (width < 900) return 2;
+  if (width < 1280) return 3;
+  return 4;
 }
 
 export function ScanScreen() {
@@ -36,51 +64,140 @@ export function ScanScreen() {
   const { loadFromPath, loadFile } = useViewer();
   const locCtx = useLocalization();
 
-  const { tokens } = useAppTheme();
-  const primaryColor = `hsl(${tokens.primary})`;
+  const { width } = useWindowDimensions();
+  const columns = columnsForWidth(width);
 
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPlyAlert, setShowPlyAlert] = useState(false);
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
-  const [viewLoading, setViewLoading] = useState(false);
+  const [viewPhase, setViewPhase] = useState<ViewPhase>('idle');
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const handleViewModel = async () => {
-    if (!selectedScan) return;
-    setViewLoading(true);
+  const viewBusy = viewPhase !== 'idle';
+
+  // Nativo: el archivo en disco. Web: la entrada en Cache Storage que deja el
+  // parser. Esta última solo se puede consultar de forma asíncrona, así que vive
+  // en estado en vez de calcularse en el render.
+  const [isDownloaded, setIsDownloaded] = useState(false);
+
+  useEffect(() => {
+    if (!selectedScan) { setIsDownloaded(false); return; }
+
+    if (Platform.OS !== 'web') {
+      setIsDownloaded(!!selectedScan.localUri && new File(selectedScan.localUri).exists);
+      return;
+    }
+
+    let cancelled = false;
+    isPlyCached(modelDownloadUrl(selectedScan.jobId, selectedScan.tipo))
+      .then((hit) => { if (!cancelled) setIsDownloaded(hit); });
+    return () => { cancelled = true; };
+  }, [selectedScan]);
+
+  // Aborta la descarga en curso; `cancelled` además evita que una carga que ya
+  // no se puede abortar (el parseo del PLY) termine navegando al visor.
+  const abortRef = useRef<AbortController | null>(null);
+  const cancelledRef = useRef(false);
+
+  const closeDrawer = () => {
+    abortRef.current?.abort();
+    cancelledRef.current = true;
+    setViewPhase('idle');
     setActionError(null);
+    setSelectedScan(null);
+  };
+
+  const handleViewModel = async () => {
+    if (!selectedScan || viewBusy) return;
+    const scan = selectedScan;
+
+    cancelledRef.current = false;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setActionError(null);
+
+    // Si la descarga termina con la app en segundo plano no tiene sentido
+    // arrastrar al usuario al visor: se guarda y se le avisa.
+    let leftApp = false;
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') leftApp = true;
+    });
+
+    // El permiso se pide aquí, al inicio del gesto del usuario que dispara una
+    // descarga que puede tardar, en vez de en el arranque sin contexto. Safari
+    // además exige que la petición nazca de un gesto.
+    void configureModelDownloadNotifications().then(() => ensureNotificationPermission());
+
+    const notifyReady = () =>
+      notifyModelReady(displayName(scan.serie, scan.jobId), () => {
+        setSelectedScan(null);
+        router.push('/viewer' as RelativePathString);
+      });
+
     try {
-      const remoteUrl = `${process.env.EXPO_PUBLIC_RECONSTRUCTION_API_URL}/download/${selectedScan.jobId}?tipo=${selectedScan.tipo ?? 'dense'}`;
+      const remoteUrl = modelDownloadUrl(scan.jobId, scan.tipo);
       let uri: string;
 
       if (Platform.OS === 'web') {
+        // En web la descarga la hace el propio visor al leer la URL, así que la
+        // fase se mantiene en "descargando" hasta que termina de cargar — salvo
+        // que ya esté en Cache Storage, donde no hay descarga que anunciar.
+        setViewPhase(isDownloaded ? 'preparing' : 'downloading');
         uri = remoteUrl;
       } else {
-        const localUri = selectedScan.localUri;
+        const localUri = scan.localUri;
         const fileExists = localUri ? new File(localUri).exists : false;
         if (fileExists) {
           uri = localUri;
         } else {
-          const res = await fetch(remoteUrl, { headers: { 'ngrok-skip-browser-warning': '1' } });
+          setViewPhase('downloading');
+          const res = await fetch(remoteUrl, {
+            headers: reconstructionApiHeaders(),
+            signal: controller.signal,
+          });
           if (!res.ok) {
             if (res.status === 409) throw new Error('El modelo aún no está listo. El procesamiento puede tardar varios minutos.');
             throw new Error(`Error al descargar el modelo (HTTP ${res.status})`);
           }
           const bytes = new Uint8Array(await res.arrayBuffer());
-          const dest = new File(Paths.document, `${selectedScan.jobId}_${selectedScan.tipo ?? 'dense'}.ply`);
+          const dest = new File(Paths.document, `${scan.jobId}_${scan.tipo ?? 'dense'}.ply`);
           dest.write(bytes);
           uri = dest.uri;
-          await updateScan(selectedScan._id, uri);
+          await updateScan(scan._id, uri);
+
+          if (cancelledRef.current) return;
+          if (leftApp || AppState.currentState !== 'active') {
+            // Ya quedó guardado: avisamos y cortamos aquí. Al volver, el botón
+            // dirá "Ver Modelo" y abrirlo será instantáneo.
+            await notifyReady();
+            return;
+          }
         }
+        if (cancelledRef.current) return;
+        setViewPhase('preparing');
       }
 
+      const loaded = await loadFromPath(uri);
+      if (cancelledRef.current) return;
+      if (!loaded) throw new Error('No se pudo leer el modelo. Intenta descargarlo de nuevo.');
+
+      // Si el usuario se fue mientras cargaba (en web es donde ocurre toda la
+      // descarga), no lo arrastramos al visor: le avisamos y que entre él.
+      if (leftApp || AppState.currentState !== 'active') {
+        await notifyReady();
+        return;
+      }
+
+      // El drawer se cierra recién aquí, cuando ya hay algo que mostrar.
       setSelectedScan(null);
-      await loadFromPath(uri);
       router.push('/viewer' as RelativePathString);
     } catch (e) {
+      if (cancelledRef.current || (e instanceof Error && e.name === 'AbortError')) return;
       setActionError(e instanceof Error ? e.message : 'No se pudo cargar el modelo');
     } finally {
-      setViewLoading(false);
+      appStateSub.remove();
+      abortRef.current = null;
+      if (!cancelledRef.current) setViewPhase('idle');
     }
   };
 
@@ -112,53 +229,64 @@ export function ScanScreen() {
 
       {loading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={primaryColor} />
+          <Spinner size="large" className="text-primary" />
         </View>
       ) : scans.length === 0 ? (
         <View className="flex-1 items-center justify-center gap-4 px-8">
-          <Camera size={48} color={primaryColor} />
+          <Icon as={Camera} size={48} className="text-primary" />
           <Text className="text-muted-foreground text-center">
             Aún no tienes escaneos.{'\n'}Toca "+" para comenzar.
           </Text>
         </View>
       ) : (
-        <ScrollView className="flex-1" contentContainerClassName="px-5 pb-24 gap-3">
-          {scans.map(scan => (
-            <Card
-              key={scan._id}
-              className="rounded-2xl overflow-hidden active:opacity-70 gap-0 py-0"
-            >
-              {portadas[scan.serie] && (
-                <Image
-                  source={{ uri: portadas[scan.serie] }}
-                  style={{ width: '100%', height: 120 }}
-                  contentFit="cover"
-                />
-              )}
-              <CardContent className="px-4 pt-3 pb-4 gap-1.5">
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-foreground font-semibold text-base flex-1 mr-2" numberOfLines={1}>
-                    {displayName(scan.serie, scan.jobId)}
-                  </Text>
-                  <View className="bg-primary/10 border border-primary/30 rounded-full px-2.5 py-0.5">
-                    <Text className="text-primary text-xs">{scan.tipo}</Text>
-                  </View>
-                </View>
-                <Text className="text-muted-foreground text-xs">
-                  {scan.createdAt
-                    ? new Date(scan.createdAt).toLocaleDateString('es-CO', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                      })
-                    : ''}
-                </Text>
-                <Button variant="outline" onPress={() => setSelectedScan(scan)}>
-                  <Text>Ver detalles</Text>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+        <ScrollView className="flex-1" contentContainerClassName="px-5 pb-24">
+          <View
+            className="flex-row flex-wrap"
+            style={{ marginHorizontal: -GRID_GAP / 2 }}
+          >
+            {scans.map(scan => (
+              <View
+                key={scan._id}
+                style={{ width: `${100 / columns}%`, paddingHorizontal: GRID_GAP / 2, paddingBottom: GRID_GAP }}
+              >
+                <Card className="flex-1 rounded-2xl overflow-hidden gap-0 py-0">
+                  {portadas[scan.serie] && (
+                    <Image
+                      source={{ uri: portadas[scan.serie] }}
+                      style={{ width: '100%', height: 120 }}
+                      contentFit="cover"
+                    />
+                  )}
+                  <CardContent className="flex-1 px-4 pt-3 pb-4 gap-1.5">
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-foreground font-semibold text-base flex-1 mr-2" numberOfLines={1}>
+                        {displayName(scan.serie, scan.jobId)}
+                      </Text>
+                      <View className="bg-primary/10 border border-primary/30 rounded-full px-2.5 py-0.5">
+                        <Text className="text-primary text-xs">{scan.tipo}</Text>
+                      </View>
+                    </View>
+                    <Text className="text-muted-foreground text-xs">
+                      {scan.createdAt
+                        ? new Date(scan.createdAt).toLocaleDateString('es-CO', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                        : ''}
+                    </Text>
+                    <Button
+                      variant="outline"
+                      className="mt-auto"
+                      onPress={() => setSelectedScan(scan)}
+                    >
+                      <Text>Ver detalles</Text>
+                    </Button>
+                  </CardContent>
+                </Card>
+              </View>
+            ))}
+          </View>
         </ScrollView>
       )}
 
@@ -168,14 +296,14 @@ export function ScanScreen() {
           onPress={() => setShowDrawer(true)}
           className="w-14 h-14 rounded-full shadow-lg items-center justify-center"
         >
-          <Plus size={26} color="white" />
+          <Icon as={Plus} size={26} />
         </Button>
         <Button
           onPress={() => setShowPlyAlert(true)}
           variant="secondary"
           className="w-14 h-14 rounded-full shadow-lg items-center justify-center"
         >
-          <ArrowUpFromLine size={22} color="#374151" />
+          <Icon as={ArrowUpFromLine} size={22} />
         </Button>
       </View>
 
@@ -203,7 +331,7 @@ export function ScanScreen() {
       {/* Drawer de opciones del scan seleccionado */}
       <Drawer
         open={!!selectedScan}
-        onOpenChange={(o) => { if (!o && !viewLoading) setSelectedScan(null); }}
+        onOpenChange={(o) => { if (!o) closeDrawer(); }}
       >
         <DrawerContent>
           <DrawerTitle style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 }}>
@@ -214,10 +342,12 @@ export function ScanScreen() {
             <View className="flex-row items-center px-5 pt-4 pb-4 border-b border-border">
               <Button
                 variant="secondary"
-                onPress={() => { if (!viewLoading) setSelectedScan(null); }}
-                className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
+                size="icon"
+                accessibilityLabel={viewBusy ? 'Cancelar y cerrar' : 'Cerrar'}
+                onPress={closeDrawer}
+                className="w-12 h-12"
               >
-                <X size={20} color="#374151" />
+                <Icon as={X} size={20} />
               </Button>
               <Text variant="h4" className="text-center flex-1" numberOfLines={1}>
                 {selectedScan ? displayName(selectedScan.serie, selectedScan.jobId).toUpperCase() : ''}
@@ -239,12 +369,23 @@ export function ScanScreen() {
                   : ''}
               </Text>
 
-              <Button onPress={handleViewModel} disabled={viewLoading}>
-                {viewLoading
-                  ? <ActivityIndicator size="small" color="white" />
-                  : <Text>Ver Modelo</Text>
+              <Button onPress={handleViewModel} disabled={viewBusy}>
+                {viewPhase === 'idle'
+                  ? <Text>{isDownloaded ? 'Ver Modelo' : 'Bajar Modelo'}</Text>
+                  : (
+                    <>
+                      <Spinner size="small" />
+                      <Text>{VIEW_PHASE_LABEL[viewPhase]}</Text>
+                    </>
+                  )
                 }
               </Button>
+
+              {viewBusy && (
+                <Text className="text-muted-foreground text-xs text-center">
+                  Puedes cerrar para cancelar
+                </Text>
+              )}
 
               {!!actionError && (
                 <View className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3">
@@ -254,7 +395,7 @@ export function ScanScreen() {
 
               <Button
                 variant="secondary"
-                disabled={viewLoading}
+                disabled={viewBusy}
                 onPress={() => {
                   locCtx.reset();
                   locCtx.setSelectedScan(selectedScan!);
@@ -265,7 +406,7 @@ export function ScanScreen() {
                 <Text>Probar VPS</Text>
               </Button>
 
-              <Button variant="ghost" onPress={handleDelete} disabled={viewLoading}>
+              <Button variant="ghost" onPress={handleDelete} disabled={viewBusy}>
                 <Text className="text-destructive text-sm">Eliminar</Text>
               </Button>
             </ScrollView>

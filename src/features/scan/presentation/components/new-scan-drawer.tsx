@@ -1,5 +1,6 @@
 import { Button } from '@/core/components/ui/button';
 import { Drawer, DrawerContent, DrawerTitle } from '@/core/components/ui/drawer';
+import { Icon } from '@/core/components/ui/icon';
 import { Text } from '@/core/components/ui/text';
 import { PhotoPicker, PickedPhoto } from '@/features/reconstruction/presentation/components/photo-picker';
 import { SerieInput } from '@/features/reconstruction/presentation/components/serie-input';
@@ -57,13 +58,13 @@ export function NewScanDrawer({ open, onClose }: Props) {
         </DrawerTitle>
 
         <View style={{ flex: 1 }}>
-          <View className="flex-row items-center px-5 pt-4 pb-4 border-b border-gray-100">
+          <View className="flex-row items-center px-5 pt-4 pb-4 border-b border-border">
             <Button
               variant="secondary"
               onPress={handleClose}
               className="rounded-full w-[50px] h-[50px] p-6 items-center justify-center"
             >
-              <X size={20} color="#374151" />
+              <Icon as={X} size={20} />
             </Button>
             <Text variant="h4" className="text-center flex-1">NUEVO ESCANEO</Text>
             <View style={{ width: 50 }} />

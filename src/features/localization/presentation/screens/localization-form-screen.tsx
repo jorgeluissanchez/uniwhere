@@ -1,4 +1,6 @@
 import { Button } from '@/core/components/ui/button';
+import { Icon } from '@/core/components/ui/icon';
+import { Spinner } from '@/core/components/ui/spinner';
 import { Text } from '@/core/components/ui/text';
 import { useLocalization } from '@/features/localization/presentation/context/localization-context';
 import { useViewer } from '@/features/viewer/presentation/context/viewer-context';
@@ -7,7 +9,7 @@ import { Image } from 'expo-image';
 import { RelativePathString, useRouter } from 'expo-router';
 import { ChevronLeft, ImageIcon } from 'lucide-react-native';
 import React from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Pressable, ScrollView, View } from 'react-native';
 
 function displayName(serie: string, jobId: string): string {
   const suffix = `_${jobId}`;
@@ -66,9 +68,9 @@ export function LocalizationFormScreen() {
         <Button
           variant="secondary"
           onPress={handleBack}
-          className="rounded-full w-[44px] h-[44px] items-center justify-center p-0"
+          className="rounded-full w-14 h-14 p-0 items-center justify-center"
         >
-          <ChevronLeft size={20} color="#374151" />
+          <Icon as={ChevronLeft} size={20} />
         </Button>
         <Text variant="h3" className="text-foreground">Localización</Text>
       </View>
@@ -99,7 +101,7 @@ export function LocalizationFormScreen() {
               />
             ) : (
               <View className="w-full h-32 rounded-2xl border border-dashed border-primary/50 items-center justify-center gap-2">
-                <ImageIcon size={28} color="#93C5FD" />
+                <Icon as={ImageIcon} size={28} className="text-primary/50" />
                 <Text className="text-primary text-sm">Toca para seleccionar imagen</Text>
               </View>
             )}
@@ -121,7 +123,7 @@ export function LocalizationFormScreen() {
         {/* Submit */}
         <Button onPress={handleSubmit} disabled={!canSubmit}>
           {submitting
-            ? <ActivityIndicator size="small" color="white" />
+            ? <Spinner size="small" />
             : <Text>Localizar</Text>
           }
         </Button>

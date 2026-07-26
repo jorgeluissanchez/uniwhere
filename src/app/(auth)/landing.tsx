@@ -28,9 +28,9 @@ const { width } = Dimensions.get("window");
           </Text>
         </View>
         <Button
-          className="w-full max-w-lg bg-blue-500"
+          className="w-full max-w-lg"
           onPress={() => router.push("/login" as RelativePathString)}>
-          <Text className="text-white font-semibold">INICIAR SESIÓN</Text>
+          <Text className="font-semibold">INICIAR SESIÓN</Text>
         </Button>
       </View>
     </View>

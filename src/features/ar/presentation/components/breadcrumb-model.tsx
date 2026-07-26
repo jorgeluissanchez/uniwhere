@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { useFrame } from '@react-three/fiber/native';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import Constants from 'expo-constants';
 
 interface Props {
@@ -16,7 +16,9 @@ interface Props {
 // Metro DOES serve assets at /assets/<relativePath> — use that directly.
 function getGLBUrl(): string {
   if (Platform.OS === 'web') {
-    return '/assets/3d_objects/Baguette.glb';
+    // Metro rewrites bundled asset paths on web, so /assets/... 404s. The copy in
+    // public/ is served verbatim at the site root in both dev and export.
+    return '/3d_objects/Baguette.glb';
   }
   // Constants.expoConfig.hostUri = "10.10.x.x:PORT" (the Metro dev server)
   const host = (Constants.expoConfig as any)?.hostUri ?? '10.0.2.2:8083';

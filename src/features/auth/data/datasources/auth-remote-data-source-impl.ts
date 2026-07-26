@@ -34,44 +34,38 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     this.prefs = LocalPreferencesAsyncStorage.getInstance();
   }
   async login(email: string, password: string): Promise<void> {
-    try {
-      const response = await fetch(`${this.baseUrl}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json; charset=UTF-8" },
-        body: JSON.stringify({ email, password }),
-      });
+    const response = await fetch(`${this.baseUrl}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=UTF-8" },
+      body: JSON.stringify({ email, password }),
+    });
 
-      if (response.ok) {
-        const data = await response.json();
-        const token = data["accessToken"];
-        const refreshToken = data["refreshToken"];
-        if (!token || !refreshToken) throw new Error("Respuesta de login inválida: faltan tokens");
-        const payload = decodeJwtPayload(token);
-        const userId = payload["sub"];
-        if (!userId) throw new Error("Token inválido: no se encontró el identificador de usuario");
-        await this.prefs.storeData("token", token);
-        await this.prefs.storeData("refreshToken", refreshToken);
-        await this.prefs.storeData("userId", userId);
-        await this.prefs.storeData("email", email);
-
-        const userRows = await fetch(
-          `${this.dbUrl}/read?tableName=user&user_id=${userId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        ).then((r) => r.json()).catch(() => []);
-
-        const role = userRows[0]?.role ?? "student";
-        const name = userRows[0]?.name ?? "";
-        await this.prefs.storeData("role", role);
-        await this.prefs.storeData("name", name);
-
-        return Promise.resolve();
-      } else {
-        const body = await response.json();
-        throw new Error(`Error al iniciar sesión: ${body.message}`);
-      }
-    } catch (e: any) {
-      throw e;
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(`Error al iniciar sesión: ${body.message ?? `HTTP ${response.status}`}`);
     }
+
+    const data = await response.json();
+    const token = data["accessToken"];
+    const refreshToken = data["refreshToken"];
+    if (!token || !refreshToken) throw new Error("Respuesta de login inválida: faltan tokens");
+    const payload = decodeJwtPayload(token);
+    const userId = payload["sub"];
+    if (!userId) throw new Error("Token inválido: no se encontró el identificador de usuario");
+    await this.prefs.storeData("token", token);
+    await this.prefs.storeData("refreshToken", refreshToken);
+    await this.prefs.storeData("userId", userId);
+    await this.prefs.storeData("email", email);
+
+    const userRows = await fetch(
+      `${this.dbUrl}/read?tableName=user&user_id=${encodeURIComponent(userId)}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    ).then((r) => r.json()).catch(() => []);
+
+    const role = userRows[0]?.role ?? "student";
+    const name = userRows[0]?.name ?? "";
+    await this.prefs.storeData("role", role);
+    await this.prefs.storeData("name", name);
   }
 
   async signUp(email: string, password: string, name: string, role: string = "student"): Promise<void> {
@@ -121,7 +115,7 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     await this.prefs.storeData("email", email);
     await this.prefs.storeData("name", name);
 
-    await fetch(`${this.dbUrl}/insert`, {
+    const insertResponse = await fetch(`${this.dbUrl}/insert`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -130,6 +124,13 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }),
     });
 
+    if (!insertResponse.ok) {
+      const detail = await insertResponse.json().catch(() => ({}));
+      throw new Error(
+        `Cuenta creada pero no se pudo guardar el perfil: ${detail.message ?? `HTTP ${insertResponse.status}`}`
+      );
+    }
+
     await this.prefs.storeData("role", role);
   }
 
@@ -137,7 +138,7 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     const userId = await this.prefs.retrieveData<string>("userId");
     const token = await this.prefs.retrieveData<string>("token");
     if (!userId || !token) return;
-    const rows = await fetch(`${this.dbUrl}/read?tableName=user&user_id=${userId}`, {
+    const rows = await fetch(`${this.dbUrl}/read?tableName=user&user_id=${encodeURIComponent(userId)}`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then((r) => r.json()).catch(() => []);
     if (rows[0]) {
@@ -146,56 +147,53 @@ export class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
   }
 
+  private async clearSession(): Promise<void> {
+    await this.prefs.removeData("token");
+    await this.prefs.removeData("refreshToken");
+    await this.prefs.removeData("userId");
+    await this.prefs.removeData("email");
+    await this.prefs.removeData("role");
+    await this.prefs.removeData("name");
+  }
+
   async logOut(): Promise<void> {
+    const token = await this.prefs.retrieveData<string>("token");
+
+    // The local session is always cleared, even if the server call fails: leaving
+    // stale tokens behind would trap the user in an unusable logged-in state.
     try {
-      const token = await this.prefs.retrieveData<string>("token");
-      if (!token) throw new Error("No se encontró el token");
-
-      const response = await fetch(`${this.baseUrl}/logout`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        await this.prefs.removeData("token");
-        await this.prefs.removeData("refreshToken");
-        await this.prefs.removeData("userId");
-        await this.prefs.removeData("email");
-        return Promise.resolve();
-      } else {
-        const body = await response.json();
-        throw new Error(`Error al cerrar sesión: ${body.message}`);
+      if (token) {
+        await fetch(`${this.baseUrl}/logout`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
       }
-    } catch (e: any) {
-      throw e;
+    } catch (e) {
+      console.warn("No se pudo notificar el cierre de sesión al servidor", e);
+    } finally {
+      await this.clearSession();
     }
   }
   async refreshToken(): Promise<boolean> {
-    try {
-      const refreshToken = await this.prefs.retrieveData<string>("refreshToken");
-      if (!refreshToken) {
-        console.warn("Falló la renovación del token", "No se encontró el refresh token");
-        return false;
-      }
-      const response = await fetch(`${this.baseUrl}/refresh-token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const newToken = data["accessToken"];
-        await this.prefs.storeData("token", newToken);
-        return true;
-      } else {
-        const body = await response.json();
-        throw new Error(`Error al renovar el token: ${body.message}`);
-      }
-    } catch (e: any) {
-      console.error("Falló la renovación del token", e);
-      throw e;
+    const refreshToken = await this.prefs.retrieveData<string>("refreshToken");
+    if (!refreshToken) {
+      console.warn("Falló la renovación del token: no se encontró el refresh token");
+      return false;
     }
+    const response = await fetch(`${this.baseUrl}/refresh-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(`Error al renovar el token: ${body.message ?? `HTTP ${response.status}`}`);
+    }
+
+    const data = await response.json();
+    await this.prefs.storeData("token", data["accessToken"]);
+    return true;
   }
 
   forgotPassword(email: string): Promise<void> {

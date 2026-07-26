@@ -1,4 +1,5 @@
 import { Button } from '@/core/components/ui/button';
+import { Icon } from '@/core/components/ui/icon';
 import { Text } from '@/core/components/ui/text';
 import { Scan } from '@/features/scan/domain/entities/scan';
 import { Check } from 'lucide-react-native';
@@ -46,10 +47,10 @@ export function SeriesPicker({ scans, selected, onSelect, disabled }: Props) {
             disabled={disabled}
             className="flex-row justify-between items-center"
           >
-            <Text className={isSelected ? 'text-white' : undefined}>
+            <Text>
               {displayName(scan.serie, scan.jobId)}
             </Text>
-            {isSelected && <Check size={16} color="white" />}
+            {isSelected && <Icon as={Check} size={16} />}
           </Button>
         );
       })}

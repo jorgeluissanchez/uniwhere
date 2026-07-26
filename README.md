@@ -110,7 +110,7 @@ Capa unificada `ILocalPreferences` → `LocalPreferencesAsyncStorage` (singleton
 
 | Clave / patrón | Contenido |
 |----------------|-----------|
-| `token`, `refreshToken` | JWT de sesión |
+| `token`, `refreshToken` | JWT de sesión — **en `expo-secure-store`** (Keychain/Keystore), no en AsyncStorage; en web caen a AsyncStorage porque SecureStore no tiene implementación web |
 | `userId`, `email`, `role`, `name` | Perfil de usuario |
 | `portada_cache_{serie}` | URI local de miniatura |
 | `ar_route` | Ruta dibujada en la grilla AR |
@@ -133,7 +133,7 @@ En web, los PLY grandes se sirven por URL remota sin copia local en disco.
 ### Seguridad
 
 - Autenticación **JWT** (access + refresh) gestionada por Roble OpenLab.
-- Tokens almacenados en AsyncStorage del dispositivo; se limpian en logout y al detectar sesión inválida.
+- Tokens almacenados cifrados en el Keychain (iOS) / Keystore (Android) vía `expo-secure-store`; las sesiones antiguas guardadas en AsyncStorage migran automáticamente en la primera lectura. Se limpian en logout — incluso si la llamada al servidor falla — y al detectar sesión inválida.
 - Peticiones autenticadas a Roble DB llevan `Authorization: Bearer {token}`.
 - El API de reconstrucción/localización es de uso interno del pipeline (sin JWT de usuario en esas rutas); la app solo lo invoca tras login para operaciones de usuario.
 - Variables sensibles de proyecto van en **`EXPO_PUBLIC_*`** (públicas en el bundle); no incluir secretos de servidor en la app.
@@ -147,12 +147,13 @@ Stack de pruebas unitarias e integración ligera:
 |-------------|-----|
 | **Jest** + `jest-expo` | Runner y preset Expo |
 | **@testing-library/react-native** | Render y queries de componentes |
-| **MSW** | Mock de red con handlers por dominio (`auth`, `scan`, `reconstruction`, `localization`) |
+| **Shim compatible con MSW** | Mock de red con handlers por dominio (`auth`, `scan`, `reconstruction`, `localization`). MSW real es ESM-only y no carga bajo Jest en modo CJS, así que `__tests__/setup/msw-compat/` reimplementa su API interceptando `fetch` |
 | `DIProvider overrides` | Sustitución de repositorios/datasources en tests |
 
 ```bash
 pnpm test              # ejecutar suite
 pnpm test:coverage     # cobertura (umbral global: 70 % líneas/funciones)
+pnpm typecheck         # tsc --noEmit
 ```
 
 Configuración: `jest.config.js`, setup en `__tests__/setup/`. Los mocks nativos (`expo-file-system`, `expo-camera`, etc.) viven en `native-mocks.ts`.

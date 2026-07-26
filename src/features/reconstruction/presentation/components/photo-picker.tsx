@@ -1,4 +1,5 @@
 import { Button } from '@/core/components/ui/button';
+import { Icon } from '@/core/components/ui/icon';
 import { Text } from '@/core/components/ui/text';
 import * as DocumentPicker from 'expo-document-picker';
 import { Image } from 'expo-image';
@@ -77,7 +78,7 @@ export function PhotoPicker({ photos, onPhotosChange, disabled }: Props) {
                     justifyContent: 'center',
                   }}
                 >
-                  <Minus size={14} color="#fff" strokeWidth={2.5} />
+                  <Icon as={Minus} size={14} className="text-white" strokeWidth={2.5} />
                 </Pressable>
               )}
             </View>

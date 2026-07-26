@@ -1,12 +1,14 @@
 // src/features/ar/presentation/screens/ar-route-screen.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, PanResponder, StyleSheet, View } from 'react-native';
+import { PanResponder, StyleSheet, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Canvas } from '@react-three/fiber/native';
 import useControls from 'r3f-native-orbitcontrols';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { Button } from '@/core/components/ui/button';
+import { Icon } from '@/core/components/ui/icon';
+import { Spinner } from '@/core/components/ui/spinner';
 import { Text } from '@/core/components/ui/text';
 import { BreadcrumbModel } from '@/features/ar/presentation/components/breadcrumb-model';
 import { useARRoute } from '@/features/ar/presentation/context/ar-route-context';
@@ -44,7 +46,7 @@ function TiltSlider({ value, onChange }: { value: number; onChange: (v: number) 
       <Text style={slider.label}>Inclinación  {degrees > 0 ? '+' : ''}{degrees}°</Text>
       <View style={[slider.track, { width: SLIDER_W }]} {...pan.panHandlers}>
         {/* filled portion */}
-        <View style={[slider.fill, { width: thumbX + THUMB_R }]} />
+        <View className="bg-primary" style={[slider.fill, { width: thumbX + THUMB_R }]} />
         {/* thumb */}
         <View style={[slider.thumb, { transform: [{ translateX: thumbX }] }]} />
       </View>
@@ -98,15 +100,15 @@ export function ARRouteScreen() {
 
   if (!permission) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+      <View className="flex-1 items-center justify-center p-6 gap-3 bg-background">
+        <Spinner size="large" className="text-primary" />
       </View>
     );
   }
 
   if (!permission.granted) {
     return (
-      <View style={styles.center}>
+      <View className="flex-1 items-center justify-center p-6 gap-3 bg-background">
         <Text className="text-center text-foreground mb-4 text-base">
           UniWhere necesita acceso a la cámara para la experiencia AR.
         </Text>
@@ -122,7 +124,7 @@ export function ARRouteScreen() {
 
   if (!savedRoute || savedRoute.length === 0) {
     return (
-      <View style={styles.center}>
+      <View className="flex-1 items-center justify-center p-6 gap-3 bg-background">
         <Text className="text-center text-foreground mb-4 text-base">
           No hay ruta guardada.{'\n'}Dibuja y guarda una ruta primero.
         </Text>
@@ -146,9 +148,9 @@ export function ARRouteScreen() {
         <Button
           variant="secondary"
           onPress={() => router.back()}
-          className="rounded-full w-[44px] h-[44px] items-center justify-center p-0"
+          className="rounded-full w-14 h-14 p-0 items-center justify-center"
         >
-          <ChevronLeft size={20} color="#374151" />
+          <Icon as={ChevronLeft} size={20} />
         </Button>
       </View>
 
@@ -169,14 +171,6 @@ export function ARRouteScreen() {
 
 const styles = StyleSheet.create({
   container:       { flex: 1, backgroundColor: '#000' },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#F9FAFB',
-    gap: 12,
-  },
   backButton:      { position: 'absolute', top: 48, left: 16 },
   badge: {
     position: 'absolute',
@@ -220,7 +214,6 @@ const slider = StyleSheet.create({
     position: 'absolute',
     left: 0,
     height: 6,
-    backgroundColor: '#3B82F6',
     borderRadius: 3,
   },
   thumb: {

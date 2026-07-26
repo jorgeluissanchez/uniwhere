@@ -4,6 +4,12 @@ const { withNativeWind } = require('nativewind/metro');
 
 const config = getDefaultConfig(__dirname);
 
+// Metro defaults to one worker per core (16 here). Each concurrent transform drives
+// a cache read in the main process through `fs.promises`, which graceful-fs does not
+// patch — so on Windows a cold rebuild exhausts the process handle table and fails
+// with EMFILE. Capping the workers bounds that concurrency.
+config.maxWorkers = 6;
+
 // Exclude generated native project dirs from Metro's watcher to prevent
 // crashes when Gradle writes files during a build.
 config.resolver.blockList = [

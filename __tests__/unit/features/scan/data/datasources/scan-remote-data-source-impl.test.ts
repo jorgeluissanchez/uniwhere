@@ -4,7 +4,7 @@ import { LocalPreferencesAsyncStorage } from '@/core/storage/local-preferences-a
 const prefs = LocalPreferencesAsyncStorage.getInstance();
 
 function mockFetchOk(body: unknown) {
-  return jest.spyOn(global, 'fetch').mockResolvedValue({
+  return jest.spyOn(globalThis, 'fetch').mockResolvedValue({
     ok: true, status: 200, json: async () => body,
   } as Response);
 }

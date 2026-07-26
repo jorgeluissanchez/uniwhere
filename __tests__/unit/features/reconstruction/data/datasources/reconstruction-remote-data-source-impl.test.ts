@@ -13,7 +13,7 @@ describe('ReconstructionRemoteDataSourceImpl', () => {
 
   describe('startJob', () => {
     it('sends POST /reconstruct with serie and fotos in FormData', async () => {
-      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
         ok: true, json: async () => ({ job_id: 'job-abc', serie: 'serie-x' }),
       } as Response);
 
@@ -31,7 +31,7 @@ describe('ReconstructionRemoteDataSourceImpl', () => {
     });
 
     it('throws on non-ok response', async () => {
-      jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+      jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
         ok: false, status: 500, json: async () => ({ detail: 'Server error' }),
       } as Response);
 
@@ -42,7 +42,7 @@ describe('ReconstructionRemoteDataSourceImpl', () => {
 
   describe('getStatus', () => {
     it('maps response to ReconstructionJob entity', async () => {
-      jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+      jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           job_id: 'job-abc', serie: 'serie-x', status: 'done',

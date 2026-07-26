@@ -1,3 +1,5 @@
+import { reconstructionApiHeaders } from '@/core/lib/api-headers';
+import { PLY_CACHE_NAME } from '@/core/lib/ply-cache';
 import { ParseResult, PlyStreamingParserDataSource } from '@/features/viewer/data/datasources/ply-streaming-parser-data-source';
 import * as THREE from 'three';
 import { Platform } from 'react-native';
@@ -137,11 +139,11 @@ export class PlyStreamingParserDataSourceImpl implements PlyStreamingParserDataS
 
   private async fetchWithCache(url: string): Promise<ArrayBuffer> {
     try {
-      const cache = await caches.open('ply-models');
+      const cache = await caches.open(PLY_CACHE_NAME);
       const cached = await cache.match(url);
       if (cached) { return cached.arrayBuffer(); }
 
-      const res = await fetch(url, { headers: { 'ngrok-skip-browser-warning': '1' } });
+      const res = await fetch(url, { headers: reconstructionApiHeaders() });
       if (!res.ok) { throw new Error(`Error al cargar el modelo (HTTP ${res.status})`); }
       const buffer = await res.arrayBuffer();
       await cache.put(url, new Response(buffer.slice(0), {
@@ -151,7 +153,7 @@ export class PlyStreamingParserDataSourceImpl implements PlyStreamingParserDataS
     } catch (e) {
       if (e instanceof Error && e.message.startsWith('Error al cargar')) { throw e; }
       // Cache API not available (private browsing, etc.) — fetch directly
-      const res = await fetch(url, { headers: { 'ngrok-skip-browser-warning': '1' } });
+      const res = await fetch(url, { headers: reconstructionApiHeaders() });
       if (!res.ok) { throw new Error(`Error al cargar el modelo (HTTP ${res.status})`); }
       return res.arrayBuffer();
     }

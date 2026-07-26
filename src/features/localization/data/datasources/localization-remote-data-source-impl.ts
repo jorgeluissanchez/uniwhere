@@ -1,3 +1,4 @@
+import { reconstructionApiHeaders } from '@/core/lib/api-headers';
 import { Platform } from 'react-native';
 import { LocalizationRemoteDataSource } from './localization-remote-data-source';
 import { LocalizationImageParam } from '@/features/localization/domain/repositories/localization-repository';
@@ -28,7 +29,7 @@ export class LocalizationRemoteDataSourceImpl implements LocalizationRemoteDataS
         {
           method: 'POST',
           body: formData,
-          headers: { 'ngrok-skip-browser-warning': '1' },
+          headers: reconstructionApiHeaders(),
           signal: controller.signal,
         }
       );

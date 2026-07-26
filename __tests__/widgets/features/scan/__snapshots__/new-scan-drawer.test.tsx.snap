@@ -16,7 +16,7 @@ exports[`NewScanDrawer matches snapshot when open 1`] = `
       }
     >
       <View
-        className="flex-row items-center px-5 pt-4 pb-4 border-b border-gray-100"
+        className="flex-row items-center px-5 pt-4 pb-4 border-b border-border"
       >
         <View
           accessibilityState={
@@ -52,7 +52,6 @@ exports[`NewScanDrawer matches snapshot when open 1`] = `
           role="button"
         >
           <View
-            color="#374151"
             size={20}
           />
         </View>

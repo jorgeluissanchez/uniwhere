@@ -9,20 +9,30 @@ interface Props {
   loading?: boolean;
 }
 
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="flex-row items-baseline justify-between gap-4">
+      <Text className="text-white/50 text-[11px] uppercase tracking-wide">{label}</Text>
+      <Text className="text-white text-xs font-semibold">{value}</Text>
+    </View>
+  );
+}
+
 export function HUD({ cloud, fps, loading = false }: Props) {
   return (
-    <View className="absolute top-4 right-4 bg-black/60 rounded-lg p-2 min-w-[120px]" pointerEvents="none">
+    <View
+      className="absolute top-12 right-5 bg-black/70 border border-white/10 rounded-2xl px-4 py-3 min-w-[160px] gap-1.5"
+      pointerEvents="none"
+    >
       {loading ? (
         <Text className="text-white text-xs">Procesando…</Text>
       ) : (
         <>
-          <Text className="text-white text-xs">Puntos: {cloud.vertexCount.toLocaleString()}</Text>
+          <Row label="Puntos" value={cloud.vertexCount.toLocaleString('es-CO')} />
           {cloud.originalVertexCount !== cloud.vertexCount && (
-            <Text className="text-gray-400 text-[10px]">
-              (reducido de {cloud.originalVertexCount.toLocaleString()})
-            </Text>
+            <Row label="Original" value={cloud.originalVertexCount.toLocaleString('es-CO')} />
           )}
-          <Text className="text-white text-xs">FPS: {fps}</Text>
+          <Row label="FPS" value={String(fps)} />
         </>
       )}
     </View>

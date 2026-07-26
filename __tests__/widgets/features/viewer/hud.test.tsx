@@ -17,8 +17,10 @@ const makeCloud = (overrides: Partial<PlyCloud> = {}): PlyCloud => ({
 describe('HUD', () => {
   it('shows vertex count and FPS', () => {
     const { getByText } = render(<HUD cloud={makeCloud()} fps={60} />);
-    expect(getByText('Puntos: 1,000')).toBeTruthy();
-    expect(getByText('FPS: 60')).toBeTruthy();
+    expect(getByText('Puntos')).toBeTruthy();
+    expect(getByText('1.000')).toBeTruthy();
+    expect(getByText('FPS')).toBeTruthy();
+    expect(getByText('60')).toBeTruthy();
   });
 
   it('shows processing text when loading', () => {
@@ -30,12 +32,13 @@ describe('HUD', () => {
     const { getByText } = render(
       <HUD cloud={makeCloud({ vertexCount: 500, originalVertexCount: 1000 })} fps={30} />
     );
-    expect(getByText(/reducido de 1,000/)).toBeTruthy();
+    expect(getByText('Original')).toBeTruthy();
+    expect(getByText('1.000')).toBeTruthy();
   });
 
   it('does not show reduced vertex info when counts match', () => {
     const { queryByText } = render(<HUD cloud={makeCloud()} fps={30} />);
-    expect(queryByText(/reducido/)).toBeNull();
+    expect(queryByText('Original')).toBeNull();
   });
 
   it('matches snapshot', () => {

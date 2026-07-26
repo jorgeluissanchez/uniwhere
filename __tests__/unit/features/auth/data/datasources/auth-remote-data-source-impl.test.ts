@@ -6,7 +6,7 @@ const FAKE_TOKEN = `fake-header.eyJzdWIiOiJ1c2VyLTEyMyJ9.fake-sig`;
 const FAKE_REFRESH = 'fake-refresh-token';
 
 function mockFetchOk(body: unknown) {
-  return jest.spyOn(global, 'fetch').mockResolvedValue({
+  return jest.spyOn(globalThis, 'fetch').mockResolvedValue({
     ok: true,
     status: 200,
     json: async () => body,
@@ -15,7 +15,7 @@ function mockFetchOk(body: unknown) {
 }
 
 function mockFetchError(status: number, body: unknown) {
-  return jest.spyOn(global, 'fetch').mockResolvedValue({
+  return jest.spyOn(globalThis, 'fetch').mockResolvedValue({
     ok: false,
     status,
     json: async () => body,
@@ -38,7 +38,7 @@ describe('AuthRemoteDataSourceImpl', () => {
     it('calls POST /auth/test-project/login with email and password', async () => {
       // First call: login endpoint. Second call: DB read for user profile.
       mockFetchOk({ accessToken: FAKE_TOKEN, refreshToken: FAKE_REFRESH });
-      const fetchSpy = jest.spyOn(global, 'fetch')
+      const fetchSpy = jest.spyOn(globalThis, 'fetch')
         .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ accessToken: FAKE_TOKEN, refreshToken: FAKE_REFRESH }) } as Response)
         .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [{ role: 'student', name: 'Test' }] } as Response);
 
@@ -51,7 +51,7 @@ describe('AuthRemoteDataSourceImpl', () => {
     });
 
     it('throws when login returns 401', async () => {
-      jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+      jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
         ok: false, status: 401, json: async () => ({ message: 'Invalid credentials' }),
       } as Response);
 
@@ -61,7 +61,7 @@ describe('AuthRemoteDataSourceImpl', () => {
 
   describe('signUp', () => {
     it('calls POST /auth/test-project/signup-direct then retries login', async () => {
-      const fetchSpy = jest.spyOn(global, 'fetch')
+      const fetchSpy = jest.spyOn(globalThis, 'fetch')
         .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) } as Response) // signup
         .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ accessToken: FAKE_TOKEN, refreshToken: FAKE_REFRESH }) } as Response) // login retry
         .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) } as Response); // DB insert
@@ -70,12 +70,70 @@ describe('AuthRemoteDataSourceImpl', () => {
 
       expect(fetchSpy.mock.calls[0][0]).toContain('signup-direct');
     });
+
+    it('throws when the profile insert fails', async () => {
+      jest.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) } as Response) // signup
+        .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ accessToken: FAKE_TOKEN, refreshToken: FAKE_REFRESH }) } as Response) // login retry
+        .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ message: 'DB down' }) } as Response); // DB insert
+
+      await expect(ds.signUp('new@example.com', 'pass123', 'New User', 'student'))
+        .rejects.toThrow(/no se pudo guardar el perfil/i);
+    });
+  });
+
+  describe('logOut', () => {
+    const { LocalPreferencesAsyncStorage } = require('@/core/storage/local-preferences-async-storage');
+
+    async function seedSession() {
+      const prefs = LocalPreferencesAsyncStorage.getInstance();
+      await prefs.storeData('token', FAKE_TOKEN);
+      await prefs.storeData('refreshToken', FAKE_REFRESH);
+      await prefs.storeData('userId', 'user-123');
+      await prefs.storeData('email', 'test@example.com');
+      await prefs.storeData('role', 'student');
+      await prefs.storeData('name', 'Test');
+      return prefs;
+    }
+
+    async function expectSessionCleared(prefs: any) {
+      for (const key of ['token', 'refreshToken', 'userId', 'email', 'role', 'name']) {
+        await expect(prefs.retrieveData(key)).resolves.toBeNull();
+      }
+    }
+
+    it('clears the local session on a successful logout', async () => {
+      const prefs = await seedSession();
+      mockFetchOk({});
+
+      await ds.logOut();
+
+      await expectSessionCleared(prefs);
+    });
+
+    it('clears the local session even when the server rejects the logout', async () => {
+      const prefs = await seedSession();
+      mockFetchError(500, { message: 'boom' });
+
+      await expect(ds.logOut()).resolves.toBeUndefined();
+
+      await expectSessionCleared(prefs);
+    });
+
+    it('clears the local session even when the network call throws', async () => {
+      const prefs = await seedSession();
+      jest.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('offline'));
+
+      await expect(ds.logOut()).resolves.toBeUndefined();
+
+      await expectSessionCleared(prefs);
+    });
   });
 
   describe('refreshToken', () => {
     it('calls POST /auth/test-project/refresh-token', async () => {
       // Pre-seed AsyncStorage with a refresh token via prefs mock
-      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
         ok: true, status: 200, json: async () => ({ accessToken: FAKE_TOKEN }),
       } as Response);
 

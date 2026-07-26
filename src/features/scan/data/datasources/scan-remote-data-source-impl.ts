@@ -1,3 +1,4 @@
+import { reconstructionApiHeaders } from '@/core/lib/api-headers';
 import { LocalPreferencesAsyncStorage } from '@/core/storage/local-preferences-async-storage';
 import { Scan } from '@/features/scan/domain/entities/scan';
 import { ScanRemoteDataSource } from '@/features/scan/data/datasources/scan-remote-data-source';
@@ -6,6 +7,9 @@ import { File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 
 export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
+  /** serie → object URL. Solo web; los object URL no sobreviven a un reload. */
+  private static readonly webPortadaCache = new Map<string, string>();
+
   private readonly dbUrl: string;
   private readonly prefs = LocalPreferencesAsyncStorage.getInstance();
 
@@ -118,7 +122,20 @@ export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
     const apiUrl = `${process.env.EXPO_PUBLIC_RECONSTRUCTION_API_URL}/${encodeURIComponent(serie)}/portada`;
 
     if (Platform.OS === 'web') {
-      return apiUrl;
+      // El <img> del navegador no puede llevar los headers de la API (ngrok
+      // devolvería su página de aviso en vez del JPEG), así que descargamos la
+      // imagen por fetch y la servimos como object URL.
+      const hit = ScanRemoteDataSourceImpl.webPortadaCache.get(serie);
+      if (hit) return hit;
+      try {
+        const res = await fetch(apiUrl, { headers: reconstructionApiHeaders() });
+        if (!res.ok) return null;
+        const objectUrl = URL.createObjectURL(await res.blob());
+        ScanRemoteDataSourceImpl.webPortadaCache.set(serie, objectUrl);
+        return objectUrl;
+      } catch {
+        return null;
+      }
     }
 
     // Return cached file if it still exists on disk
@@ -127,7 +144,7 @@ export class ScanRemoteDataSourceImpl implements ScanRemoteDataSource {
 
     // Download and cache
     try {
-      const res = await fetch(apiUrl, { headers: { 'ngrok-skip-browser-warning': '1' } });
+      const res = await fetch(apiUrl, { headers: reconstructionApiHeaders() });
       if (!res.ok) return null;
       const bytes = new Uint8Array(await res.arrayBuffer());
       const dest = new File(Paths.cache, `portada_${serie}.jpg`);

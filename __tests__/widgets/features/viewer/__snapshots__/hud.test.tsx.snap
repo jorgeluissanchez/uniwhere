@@ -2,20 +2,36 @@
 
 exports[`HUD matches snapshot 1`] = `
 <View
-  className="absolute top-4 right-4 bg-black/60 rounded-lg p-2 min-w-[120px]"
+  className="absolute top-12 right-5 bg-black/70 border border-white/10 rounded-2xl px-4 py-3 min-w-[160px] gap-1.5"
   pointerEvents="none"
 >
-  <Text
-    className="font-abeezee text-white text-xs"
+  <View
+    className="flex-row items-baseline justify-between gap-4"
   >
-    Puntos: 
-    1,000
-  </Text>
-  <Text
-    className="font-abeezee text-white text-xs"
+    <Text
+      className="font-abeezee text-white/50 text-[11px] uppercase tracking-wide"
+    >
+      Puntos
+    </Text>
+    <Text
+      className="font-abeezee text-white text-xs font-semibold"
+    >
+      1.000
+    </Text>
+  </View>
+  <View
+    className="flex-row items-baseline justify-between gap-4"
   >
-    FPS: 
-    60
-  </Text>
+    <Text
+      className="font-abeezee text-white/50 text-[11px] uppercase tracking-wide"
+    >
+      FPS
+    </Text>
+    <Text
+      className="font-abeezee text-white text-xs font-semibold"
+    >
+      60
+    </Text>
+  </View>
 </View>
 `;

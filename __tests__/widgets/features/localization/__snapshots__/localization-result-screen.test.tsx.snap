@@ -8,7 +8,7 @@ exports[`LocalizationResultScreen matches snapshot 1`] = `
     className="absolute top-12 left-5 right-16 flex-row items-center gap-2 bg-black/70 rounded-2xl px-4 py-2.5"
   >
     <View
-      className="w-3 h-3 rounded-full bg-red-500"
+      className="w-3 h-3 rounded-full bg-destructive"
     />
     <Text
       className="font-abeezee text-white text-sm font-semibold flex-1"
@@ -38,7 +38,7 @@ exports[`LocalizationResultScreen matches snapshot 1`] = `
         }
       }
       accessible={true}
-      className="group font-cal shrink-0 flex-row gap-2 overflow-visible bg-secondary active:bg-secondary/80 shadow-sm shadow-black/5 min-h-14 rounded-full w-[44px] h-[44px] items-center justify-center p-0"
+      className="group font-cal shrink-0 flex-row gap-2 overflow-visible bg-secondary active:bg-secondary/80 shadow-sm shadow-black/5 min-h-14 rounded-full w-14 h-14 p-0 items-center justify-center"
       collapsable={false}
       focusable={true}
       onBlur={[Function]}
@@ -53,7 +53,6 @@ exports[`LocalizationResultScreen matches snapshot 1`] = `
       role="button"
     >
       <View
-        color="#374151"
         size={20}
       />
     </View>

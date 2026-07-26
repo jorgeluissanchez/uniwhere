@@ -2,32 +2,119 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =============================================================================
+   Design system — fuente de verdad de los tokens de color.
+
+   Los componentes NUNCA leen valores de color desde JS: usan las utilidades de
+   Tailwind (`bg-primary`, `text-foreground`, `border-border`, `bg-primary/30`…).
+   Lo único que administra el provider es CUÁL paleta está activa.
+
+   Dos notas sobre el formato, que difiere de un `index.css` de Tailwind v4:
+
+   1. Los colores van como canales HSL sueltos (`239 84% 67%`) y no como hex.
+      En Tailwind v3 es la única forma de que funcionen los modificadores de
+      opacidad: `bg-primary/30` compila a `hsl(var(--primary) / 0.3)`. Por eso
+      aquí no hacen falta los tokens `--primary-stroke` (= `/30`) ni
+      `--primary-22` (= `/22`): salen gratis de la utilidad.
+
+   2. El modo oscuro se declara con `.dark:root` y no con `.dark`. NativeWind
+      solo reconoce `:root`, `.dark:root` y `*` como ámbitos de variables al
+      compilar para nativo; cualquier otro selector se descarta fuera de web.
+   ========================================================================== */
+
 @layer base {
   :root {
-    --background: ;
-    --foreground: ;
-    --card: ;
-    --card-foreground: ;
-    --popover: ;
-    --popover-foreground: ;
-    --primary: ;
-    --primary-foreground: ;
-    --secondary: ;
-    --secondary-foreground: ;
-    --muted: ;
-    --muted-foreground: ;
-    --accent: ;
-    --accent-foreground: ;
-    --destructive: ;
-    --destructive-foreground: ;
-    --border: ;
-    --input: ;
-    --ring: ;
+    /* ---------- SUPERFICIES ---------------------------------------------- */
+    --background: 220 14% 96%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+
+    /* ---------- MARCA ------------------------------------------------------
+       Valores de la paleta por defecto (indigo claro). El AppThemeProvider los
+       sobreescribe al vuelo cuando hay otra paleta activa. */
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+
+    /* ---------- SEMÁNTICOS -------------------------------------------------
+       No dependen de la paleta: son los mismos en indigo, teal o la que venga. */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --success: 142 71% 35%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 10%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    /* ---------- BORDES / FOCO --------------------------------------------- */
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 63%;
+
+    /* ---------- CHARTS ----------------------------------------------------- */
+    --chart-1: 239 84% 67%;
+    --chart-2: 199 89% 48%;
+    --chart-3: 142 71% 35%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 280 65% 60%;
+
+    /* ---------- RADIO / TIPOGRAFÍA ---------------------------------------- */
     --radius: 0.625rem;
 
     --font-display: 'Cal Sans', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
     --font-mono: 'SF Mono Regular', SF Mono, Consolas, 'Liberation Mono', Menlo, Courier, monospace;
     --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
     --font-serif: Georgia, 'Times New Roman', serif;
+  }
+
+  .dark:root {
+    /* ---------- SUPERFICIES ---------------------------------------------- */
+    --background: 238 40% 5%;
+    --foreground: 0 0% 98%;
+    --card: 238 30% 11%;
+    --card-foreground: 0 0% 98%;
+    --popover: 238 30% 11%;
+    --popover-foreground: 0 0% 98%;
+
+    /* ---------- MARCA ----------------------------------------------------- */
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+
+    /* ---------- SEMÁNTICOS ------------------------------------------------ */
+    --destructive: 0 70.9% 59.4%;
+    --destructive-foreground: 0 0% 98%;
+    --success: 142 60% 45%;
+    --success-foreground: 142 60% 8%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 38 92% 10%;
+    --info: 199 89% 55%;
+    --info-foreground: 199 89% 8%;
+
+    /* ---------- BORDES / FOCO --------------------------------------------- */
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 300 0% 45%;
+
+    /* ---------- CHARTS ----------------------------------------------------- */
+    --chart-1: 239 84% 72%;
+    --chart-2: 199 89% 55%;
+    --chart-3: 142 60% 45%;
+    --chart-4: 38 92% 55%;
+    --chart-5: 280 65% 68%;
   }
 }

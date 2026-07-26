@@ -1,4 +1,6 @@
 import { Button } from '@/core/components/ui/button';
+import { Icon } from '@/core/components/ui/icon';
+import { Spinner } from '@/core/components/ui/spinner';
 import { Text } from '@/core/components/ui/text';
 import { useLocalization } from '@/features/localization/presentation/context/localization-context';
 import { PointCloudCanvas } from '@/features/viewer/presentation/components/point-cloud-canvas';
@@ -7,7 +9,7 @@ import { RelativePathString, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 
 export function LocalizationResultScreen() {
   const router = useRouter();
@@ -27,7 +29,7 @@ export function LocalizationResultScreen() {
   if (loading || !cloud) {
     return (
       <View className="flex-1 bg-[#0f0f1a] items-center justify-center gap-4">
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <Spinner size="large" className="text-primary" />
         <Text className="text-gray-400">Cargando modelo…</Text>
       </View>
     );
@@ -40,7 +42,7 @@ export function LocalizationResultScreen() {
       {/* "Usted se encuentra aquí" badge */}
       {markerPoint && (
         <View className="absolute top-12 left-5 right-16 flex-row items-center gap-2 bg-black/70 rounded-2xl px-4 py-2.5">
-          <View className="w-3 h-3 rounded-full bg-red-500" />
+          <View className="w-3 h-3 rounded-full bg-destructive" />
           <Text className="text-white text-sm font-semibold flex-1">Usted se encuentra aquí</Text>
         </View>
       )}
@@ -50,9 +52,9 @@ export function LocalizationResultScreen() {
         <Button
           variant="secondary"
           onPress={handleBack}
-          className="rounded-full w-[44px] h-[44px] items-center justify-center p-0"
+          className="rounded-full w-14 h-14 p-0 items-center justify-center"
         >
-          <ChevronLeft size={20} color="#374151" />
+          <Icon as={ChevronLeft} size={20} />
         </Button>
       </View>
 

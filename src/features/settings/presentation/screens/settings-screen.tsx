@@ -1,16 +1,17 @@
 import { CURIOUS_CUATE_SVG } from "@/assets/svgs/curiousCuate";
 import { LOW_POLY_GRID_SVG } from "@/assets/svgs/lowPolyGrid";
 import { Button } from "@/core/components/ui/button";
+import { Icon } from "@/core/components/ui/icon";
 import { Text } from "@/core/components/ui/text";
 import { ToggleGroup, ToggleGroupItem } from "@/core/components/ui/toggle-group";
 import { useAppTheme } from "@/core/hooks/use-app-theme";
+import { TOKENS } from "@/core/constants/theme";
 import { useAuth } from "@/features/auth/presentation/context/auth-context";
 import { RelativePathString, useRouter } from "expo-router";
 import { LogOutIcon, PaletteIcon, XIcon } from "lucide-react-native";
 import React, { useState } from "react";
 import { Dimensions, Pressable, StyleSheet, View } from "react-native";
 import { SvgXml } from "react-native-svg";
-import { LinearGradient } from 'expo-linear-gradient';
 
 function capitalizeLikeWelcome(name: string): string {
   return name.toLowerCase().split(" ").filter(Boolean)
@@ -19,9 +20,9 @@ function capitalizeLikeWelcome(name: string): string {
 
 export default function SettingsScreen() {
   const { loggedUser, logout } = useAuth();
-  const { tokens, schemeOverride, colorTheme, setSchemeOverride, setColorTheme } = useAppTheme();
+  const { schemeOverride, colorTheme, resolvedScheme, setSchemeOverride, setColorTheme } = useAppTheme();
   const router = useRouter();
-  const { width } = Dimensions.get("window");
+  const { width, height } = Dimensions.get("window");
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const isAdmin = loggedUser?.role === "admin";
@@ -29,8 +30,6 @@ export default function SettingsScreen() {
   const displayName = capitalizeLikeWelcome(
     loggedUser?.name ?? loggedUser?.email?.split("@")[0] ?? "Usuario"
   );
-  const bgColor = `hsl(${tokens.background})`;
-
   const AppearanceToggles = (
     <>
       <View className="gap-1.5">
@@ -69,13 +68,19 @@ export default function SettingsScreen() {
         >
           <ToggleGroupItem value="indigo" className="flex-1" testID="theme-toggle-indigo">
             <View className="flex-row items-center gap-1.5">
-              <View className="w-3 h-3 rounded-full bg-[hsl(239,84%,67%)]" />
+              <View
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: `hsl(${TOKENS.indigo[resolvedScheme].primary})` }}
+              />
               <Text className="text-xs">Índigo</Text>
             </View>
           </ToggleGroupItem>
           <ToggleGroupItem value="teal" className="flex-1" testID="theme-toggle-teal">
             <View className="flex-row items-center gap-1.5">
-              <View className="w-3 h-3 rounded-full bg-[hsl(199,89%,48%)]" />
+              <View
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: `hsl(${TOKENS.teal[resolvedScheme].primary})` }}
+              />
               <Text className="text-xs">Teal</Text>
             </View>
           </ToggleGroupItem>
@@ -85,82 +90,75 @@ export default function SettingsScreen() {
   );
 
   return (
-    <View className="flex-1">
+    <View className="flex-1 bg-primary overflow-hidden">
       {/* Ghost container — off-screen, zero visual impact, keeps testIDs in tree for tests */}
       <View style={styles.ghost} testID="appearance-card">
         {AppearanceToggles}
       </View>
 
-      {/* Top half — primary gradient with poly grid */}
-      <View className="flex-1 bg-primary overflow-hidden justify-between">
-        <View pointerEvents="none" className="absolute inset-0" style={{ opacity: 0.35 }}>
-          <SvgXml xml={LOW_POLY_GRID_SVG} width={width} height={width * 1.5} preserveAspectRatio="xMidYMid slice" />
-        </View>
+      {/* Poly grid spans the whole screen so every section shares one background */}
+      <View pointerEvents="none" className="absolute inset-0" style={{ opacity: 0.35 }}>
+        <SvgXml xml={LOW_POLY_GRID_SVG} width={width} height={height} preserveAspectRatio="xMidYMid slice" />
+      </View>
 
-        <View className="px-5 pt-10">
-          <View className="flex-row items-center justify-between">
-            <Button
-              variant="ghost"
-              onPress={() => router.replace("/" as RelativePathString)}
-              className="rounded-full w-12 h-12 items-center justify-center bg-primary/80"
-            >
-              <XIcon size={20} color="white" />
-            </Button>
+      <View className="px-5 pt-10">
+        {/* `items-start`: la columna de la derecha son dos botones apilados, así
+            que la fila mide 120px de alto. Con `items-center` la X quedaba
+            centrada en esa altura — o sea, en el hueco entre esos dos. */}
+        <View className="flex-row items-start justify-between">
+          <Button
+            variant="secondary"
+            onPress={() => router.replace("/" as RelativePathString)}
+            className="rounded-full w-14 h-14 p-0 items-center justify-center"
+          >
+            <Icon as={XIcon} size={20} />
+          </Button>
 
-            <Text variant="h3" className="flex-1 text-center text-primary-foreground font-cal text-lg">
+          {/* h-14 = alto del botón, para que el título quede a la misma altura
+              que la X y el de logout, no pegado al borde superior. */}
+          <View className="flex-1 h-14 justify-center">
+            <Text variant="h3" className="text-center text-primary-foreground font-cal text-lg">
               {greeting}
             </Text>
-
-            {/* Logout + theme buttons stacked */}
-            <View className="items-center gap-2">
-              <Button
-                variant="ghost"
-                onPress={async () => { await logout(); }}
-                className="rounded-full w-12 h-12 items-center justify-center bg-primary/80"
-              >
-                <LogOutIcon size={20} color="white" />
-              </Button>
-              <Button
-                variant="ghost"
-                onPress={() => setDialogOpen(true)}
-                className="rounded-full w-12 h-12 items-center justify-center bg-primary/80"
-              >
-                <PaletteIcon size={20} color="white" />
-              </Button>
-            </View>
           </View>
-        </View>
 
-        <View className="w-full items-center justify-center max-w-lg mx-auto px-4 pb-8">
-          <Text variant="h1" className="text-primary-foreground text-center leading-tight">
-            {displayName}
-          </Text>
-          <Text className="mt-3 text-primary-foreground/70">
-            {loggedUser?.email ?? ""}
-          </Text>
-          <View className="mt-4 bg-primary/70 rounded-2xl px-6 py-3">
-            <Text className="text-primary-foreground/80 text-center text-sm">
-              {isAdmin ? "Administrador" : "Usuario"}
-            </Text>
+          {/* Logout + theme buttons stacked */}
+          <View className="items-center gap-2">
+            <Button
+              variant="secondary"
+              onPress={async () => { await logout(); }}
+              className="rounded-full w-14 h-14 p-0 items-center justify-center"
+            >
+              <Icon as={LogOutIcon} size={20} />
+            </Button>
+            <Button
+              variant="secondary"
+              onPress={() => setDialogOpen(true)}
+              className="rounded-full w-14 h-14 p-0 items-center justify-center"
+            >
+              <Icon as={PaletteIcon} size={20} />
+            </Button>
           </View>
         </View>
       </View>
 
-      {/* Bottom half — illustration */}
-      <View className="flex-1 bg-background overflow-hidden">
-        <View className="flex-1 w-full items-center justify-center overflow-hidden">
-          <SvgXml xml={CURIOUS_CUATE_SVG} width={width * 1.1} height={width * 1.1} />
-          <LinearGradient
-            colors={[bgColor, 'transparent']}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 80 }}
-            pointerEvents="none"
-          />
-          <LinearGradient
-            colors={['transparent', bgColor]}
-            style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80 }}
-            pointerEvents="none"
-          />
+      <View className="w-full items-center justify-center max-w-lg mx-auto px-4 mt-10">
+        <Text variant="h1" className="text-primary-foreground text-center leading-tight">
+          {displayName}
+        </Text>
+        <Text className="mt-3 text-primary-foreground/70">
+          {loggedUser?.email ?? ""}
+        </Text>
+        <View className="mt-4 bg-primary/70 rounded-2xl px-6 py-3">
+          <Text className="text-primary-foreground/80 text-center text-sm">
+            {isAdmin ? "Administrador" : "Usuario"}
+          </Text>
         </View>
+      </View>
+
+      {/* Illustration sits directly on the shared background — no separate panel */}
+      <View className="flex-1 w-full items-center justify-center overflow-hidden">
+        <SvgXml xml={CURIOUS_CUATE_SVG} width={width * 1.1} height={width * 1.1} />
       </View>
 
       {/* Appearance dialog — rendered only when open, no touch blocking when closed */}
@@ -173,7 +171,18 @@ export default function SettingsScreen() {
           />
           <View style={styles.dialogContainer}>
             <View className="bg-background rounded-2xl p-6 w-full border border-border gap-4">
-              <Text className="text-foreground text-lg font-semibold">Apariencia</Text>
+              <View className="flex-row items-center justify-between">
+                <Text className="text-foreground text-lg font-semibold">Apariencia</Text>
+                <Button
+                  variant="ghost"
+                  onPress={() => setDialogOpen(false)}
+                  accessibilityLabel="Cerrar"
+                  testID="appearance-dialog-close"
+                  className="rounded-full w-10 h-10 min-h-0 p-0 items-center justify-center"
+                >
+                  <Icon as={XIcon} size={18} />
+                </Button>
+              </View>
               {AppearanceToggles}
             </View>
           </View>

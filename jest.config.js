@@ -19,6 +19,7 @@ module.exports = {
     '^expo-document-picker$': '<rootDir>/__tests__/setup/mocks/expo-document-picker.js',
     '^expo-image-picker$': '<rootDir>/__tests__/setup/mocks/expo-image-picker.js',
     '^expo-constants$': '<rootDir>/__tests__/setup/mocks/expo-constants.js',
+    '^expo-secure-store$': '<rootDir>/__tests__/setup/mocks/expo-secure-store.js',
     '^expo-camera$': '<rootDir>/__tests__/setup/mocks/expo-camera.js',
     '^expo-linear-gradient$': '<rootDir>/__tests__/setup/mocks/expo-linear-gradient.js',
     '^expo-router$': '<rootDir>/__tests__/setup/mocks/expo-router.js',
@@ -31,7 +32,10 @@ module.exports = {
     '^react-native-worklets$': '<rootDir>/__tests__/setup/mocks/reanimated.js',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@rn-primitives/.*|nativewind|tailwind-merge|class-variance-authority)',
+    // pnpm stores packages under node_modules/.pnpm/<name>@<version>/node_modules/<name>,
+    // so the allow-list must also match right after an optional `.pnpm/` segment, where
+    // scope separators are `+` instead of `/`.
+    'node_modules/(?!(\\.pnpm/)?((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?[/+].*|@expo-google-fonts[/+].*|react-navigation|@react-navigation[/+].*|@rn-primitives[/+].*|nativewind|tailwind-merge|class-variance-authority))',
   ],
   collectCoverageFrom: [
     'src/features/**/*.{ts,tsx}',
@@ -55,8 +59,6 @@ module.exports = {
     '!src/core/hooks/**',
     // Localization UI markers depend on map/canvas primitives unavailable in Jest
     '!src/features/localization/presentation/components/**',
-    // Reconstruction form is a pure UI composition; covered indirectly by context tests
-    '!src/features/reconstruction/presentation/components/reconstruction-form.tsx',
   ],
   coverageThreshold: {
     global: { lines: 70, functions: 70 },

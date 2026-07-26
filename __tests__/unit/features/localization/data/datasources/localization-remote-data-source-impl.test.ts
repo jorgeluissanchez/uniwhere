@@ -14,7 +14,7 @@ describe('LocalizationRemoteDataSourceImpl', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it('sends POST to /{encodeURIComponent(serie)}/localize with ngrok header', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       json: async () => ({ success: true, inlier_count: 10, translation: [1, 2, 3], rotation: [], pose: [] }),
     } as Response);
@@ -33,7 +33,7 @@ describe('LocalizationRemoteDataSourceImpl', () => {
     // We can verify this indirectly: the FormData is the body.
     // Spy on FormData.append to capture field names.
     const appendSpy = jest.spyOn(FormData.prototype, 'append');
-    jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+    jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       json: async () => ({ success: true, inlier_count: 5, translation: [0, 0, 0], rotation: [], pose: [] }),
     } as Response);
@@ -45,7 +45,7 @@ describe('LocalizationRemoteDataSourceImpl', () => {
   });
 
   it('maps translation[0..2] to x, y, z', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+    jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       json: async () => ({ success: true, inlier_count: 7, translation: [1.1, 2.2, 3.3], rotation: [], pose: [] }),
     } as Response);
@@ -57,7 +57,7 @@ describe('LocalizationRemoteDataSourceImpl', () => {
   });
 
   it('throws correct message on 404', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+    jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: false, status: 404, json: async () => ({}),
     } as Response);
 
@@ -66,7 +66,7 @@ describe('LocalizationRemoteDataSourceImpl', () => {
   });
 
   it('throws correct message on 422', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+    jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: false, status: 422, json: async () => ({}),
     } as Response);
 
