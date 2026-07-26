@@ -4,7 +4,7 @@ import { Spinner } from '@/core/components/ui/spinner';
 import { Text } from '@/core/components/ui/text';
 import { useViewer } from '@/features/viewer/presentation/context/viewer-context';
 import { PointCloudCanvas } from '@/features/viewer/presentation/components/point-cloud-canvas';
-import { useRouter } from 'expo-router';
+import { RelativePathString, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import React from 'react';
 import { View } from 'react-native';
@@ -20,7 +20,7 @@ export function ViewerScreen() {
         <View className="absolute top-12 left-5">
           <Button
             variant="secondary"
-            onPress={() => router.back()}
+            onPress={() => router.replace('/scan' as RelativePathString)}
             className="rounded-full w-14 h-14 p-0 items-center justify-center"
           >
             <Icon as={ChevronLeft} size={20} />

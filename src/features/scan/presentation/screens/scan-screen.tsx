@@ -1,5 +1,11 @@
 import { reconstructionApiHeaders } from '@/core/lib/api-headers';
-import { isPlyCached, modelDownloadUrl } from '@/core/lib/ply-cache';
+import {
+  downloadWithProgress,
+  HttpStatusError,
+  isPlyCached,
+  modelDownloadUrl,
+  putPlyInCache,
+} from '@/core/lib/ply-cache';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,6 +57,29 @@ const VIEW_PHASE_LABEL: Record<Exclude<ViewPhase, 'idle'>, string> = {
   preparing: 'Preparando vista…',
 };
 
+/** Descarga el modelo traduciendo el código HTTP al mensaje que ve el usuario. */
+async function downloadModel(
+  url: string,
+  signal: AbortSignal,
+  onProgress: (ratio: number | null) => void,
+): Promise<ArrayBuffer> {
+  try {
+    return await downloadWithProgress(url, {
+      headers: reconstructionApiHeaders(),
+      signal,
+      onProgress,
+    });
+  } catch (e) {
+    if (e instanceof HttpStatusError) {
+      if (e.status === 409) {
+        throw new Error('El modelo aún no está listo. El procesamiento puede tardar varios minutos.');
+      }
+      throw new Error(`Error al descargar el modelo (HTTP ${e.status})`);
+    }
+    throw e;
+  }
+}
+
 function columnsForWidth(width: number): number {
   if (width < 640) return 1;
   if (width < 900) return 2;
@@ -71,9 +100,20 @@ export function ScanScreen() {
   const [showPlyAlert, setShowPlyAlert] = useState(false);
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
   const [viewPhase, setViewPhase] = useState<ViewPhase>('idle');
+  /** Fracción descargada, o `null` si el servidor no declara el tamaño. */
+  const [progress, setProgress] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const viewBusy = viewPhase !== 'idle';
+
+  // El porcentaje solo se muestra si el servidor declaró el tamaño; si no, la
+  // etiqueta se queda en el texto de la fase y el spinner hace de indicador.
+  const busyLabel =
+    viewPhase === 'idle'
+      ? ''
+      : viewPhase === 'downloading' && progress !== null
+        ? `Descargando modelo… ${Math.round(progress * 100)}%`
+        : VIEW_PHASE_LABEL[viewPhase];
 
   // Nativo: el archivo en disco. Web: la entrada en Cache Storage que deja el
   // parser. Esta última solo se puede consultar de forma asíncrona, así que vive
@@ -103,6 +143,7 @@ export function ScanScreen() {
     abortRef.current?.abort();
     cancelledRef.current = true;
     setViewPhase('idle');
+    setProgress(null);
     setActionError(null);
     setSelectedScan(null);
   };
@@ -115,6 +156,7 @@ export function ScanScreen() {
     const controller = new AbortController();
     abortRef.current = controller;
     setActionError(null);
+    setProgress(null);
 
     // Si la descarga termina con la app en segundo plano no tiene sentido
     // arrastrar al usuario al visor: se guarda y se le avisa.
@@ -139,11 +181,17 @@ export function ScanScreen() {
       let uri: string;
 
       if (Platform.OS === 'web') {
-        // En web la descarga la hace el propio visor al leer la URL, así que la
-        // fase se mantiene en "descargando" hasta que termina de cargar — salvo
-        // que ya esté en Cache Storage, donde no hay descarga que anunciar.
-        setViewPhase(isDownloaded ? 'preparing' : 'downloading');
+        // Se descarga aquí, y no dentro del visor, para poder informar el
+        // progreso; el visor lo encuentra después en Cache Storage.
         uri = remoteUrl;
+        if (!isDownloaded) {
+          setViewPhase('downloading');
+          const buffer = await downloadModel(remoteUrl, controller.signal, setProgress);
+          if (cancelledRef.current) return;
+          await putPlyInCache(remoteUrl, buffer);
+        }
+        if (cancelledRef.current) return;
+        setViewPhase('preparing');
       } else {
         const localUri = scan.localUri;
         const fileExists = localUri ? new File(localUri).exists : false;
@@ -151,15 +199,8 @@ export function ScanScreen() {
           uri = localUri;
         } else {
           setViewPhase('downloading');
-          const res = await fetch(remoteUrl, {
-            headers: reconstructionApiHeaders(),
-            signal: controller.signal,
-          });
-          if (!res.ok) {
-            if (res.status === 409) throw new Error('El modelo aún no está listo. El procesamiento puede tardar varios minutos.');
-            throw new Error(`Error al descargar el modelo (HTTP ${res.status})`);
-          }
-          const bytes = new Uint8Array(await res.arrayBuffer());
+          const buffer = await downloadModel(remoteUrl, controller.signal, setProgress);
+          const bytes = new Uint8Array(buffer);
           const dest = new File(Paths.document, `${scan.jobId}_${scan.tipo ?? 'dense'}.ply`);
           dest.write(bytes);
           uri = dest.uri;
@@ -197,6 +238,7 @@ export function ScanScreen() {
     } finally {
       appStateSub.remove();
       abortRef.current = null;
+      setProgress(null);
       if (!cancelledRef.current) setViewPhase('idle');
     }
   };
@@ -375,7 +417,7 @@ export function ScanScreen() {
                   : (
                     <>
                       <Spinner size="small" />
-                      <Text>{VIEW_PHASE_LABEL[viewPhase]}</Text>
+                      <Text>{busyLabel}</Text>
                     </>
                   )
                 }

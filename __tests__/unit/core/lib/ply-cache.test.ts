@@ -1,4 +1,10 @@
-import { isPlyCached, modelDownloadUrl, PLY_CACHE_NAME } from '@/core/lib/ply-cache';
+import {
+  downloadWithProgress,
+  HttpStatusError,
+  isPlyCached,
+  modelDownloadUrl,
+  PLY_CACHE_NAME,
+} from '@/core/lib/ply-cache';
 
 describe('modelDownloadUrl', () => {
   it('usa "dense" cuando no se indica tipo', () => {
@@ -41,5 +47,90 @@ describe('isPlyCached', () => {
   it('no propaga errores de la Cache API', async () => {
     (globalThis as any).caches = { open: jest.fn().mockRejectedValue(new Error('denied')) };
     await expect(isPlyCached('http://x/model.ply')).resolves.toBe(false);
+  });
+});
+
+describe('downloadWithProgress', () => {
+  class FakeXHR {
+    static last: FakeXHR;
+    status = 200;
+    response: unknown = new ArrayBuffer(8);
+    responseType = '';
+    onprogress: ((e: any) => void) | null = null;
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    onabort: (() => void) | null = null;
+    headers: Record<string, string> = {};
+    aborted = false;
+
+    constructor() { FakeXHR.last = this; }
+    open = jest.fn();
+    setRequestHeader = (k: string, v: string) => { this.headers[k] = v; };
+    send = jest.fn();
+    abort = () => { this.aborted = true; this.onabort?.(); };
+  }
+
+  const originalXHR = (globalThis as any).XMLHttpRequest;
+  beforeEach(() => { (globalThis as any).XMLHttpRequest = FakeXHR; });
+  afterEach(() => { (globalThis as any).XMLHttpRequest = originalXHR; });
+
+  it('informa el progreso una sola vez por punto porcentual', async () => {
+    const onProgress = jest.fn();
+    const promise = downloadWithProgress('http://x/m.ply', { onProgress });
+
+    const xhr = FakeXHR.last;
+    xhr.onprogress?.({ lengthComputable: true, loaded: 50, total: 100 });
+    xhr.onprogress?.({ lengthComputable: true, loaded: 50, total: 100 }); // mismo %
+    xhr.onprogress?.({ lengthComputable: true, loaded: 75, total: 100 });
+    xhr.onload?.();
+
+    await promise;
+    expect(onProgress.mock.calls.map((c) => c[0])).toEqual([0.5, 0.75, 1]);
+  });
+
+  it('informa null cuando no hay Content-Length', async () => {
+    const onProgress = jest.fn();
+    const promise = downloadWithProgress('http://x/m.ply', { onProgress });
+
+    const xhr = FakeXHR.last;
+    xhr.onprogress?.({ lengthComputable: false, loaded: 50, total: 0 });
+    xhr.onload?.();
+
+    await promise;
+    expect(onProgress).toHaveBeenCalledWith(null);
+  });
+
+  it('envía los headers recibidos', async () => {
+    const promise = downloadWithProgress('http://x/m.ply', { headers: { 'X-Test': '1' } });
+    FakeXHR.last.onload?.();
+    await promise;
+    expect(FakeXHR.last.headers).toEqual({ 'X-Test': '1' });
+  });
+
+  it('rechaza con HttpStatusError conservando el código', async () => {
+    const promise = downloadWithProgress('http://x/m.ply');
+    FakeXHR.last.status = 409;
+    FakeXHR.last.onload?.();
+
+    await expect(promise).rejects.toMatchObject({ name: 'HttpStatusError', status: 409 });
+    await expect(promise).rejects.toBeInstanceOf(HttpStatusError);
+  });
+
+  it('rechaza con AbortError si la señal se cancela', async () => {
+    const controller = new AbortController();
+    const promise = downloadWithProgress('http://x/m.ply', { signal: controller.signal });
+
+    controller.abort();
+
+    await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
+    expect(FakeXHR.last.aborted).toBe(true);
+  });
+
+  it('rechaza de inmediato si la señal ya venía cancelada', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      downloadWithProgress('http://x/m.ply', { signal: controller.signal })
+    ).rejects.toMatchObject({ name: 'AbortError' });
   });
 });

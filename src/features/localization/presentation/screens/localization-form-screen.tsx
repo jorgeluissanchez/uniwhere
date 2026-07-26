@@ -56,7 +56,7 @@ export function LocalizationFormScreen() {
 
   const handleBack = () => {
     reset();
-    router.back();
+    router.replace('/scan' as RelativePathString);
   };
 
   const canSubmit = !!selectedScan && !!image && !submitting;

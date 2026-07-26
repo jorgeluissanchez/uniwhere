@@ -23,7 +23,7 @@ export function LocalizationResultScreen() {
 
   const handleBack = () => {
     reset();
-    router.push('/(app)/(tabs)/scan' as RelativePathString);
+    router.replace('/scan' as RelativePathString);
   };
 
   if (loading || !cloud) {

@@ -4,7 +4,7 @@ import { PanResponder, StyleSheet, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Canvas } from '@react-three/fiber/native';
 import useControls from 'r3f-native-orbitcontrols';
-import { useRouter } from 'expo-router';
+import { RelativePathString, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { Button } from '@/core/components/ui/button';
 import { Icon } from '@/core/components/ui/icon';
@@ -115,7 +115,7 @@ export function ARRouteScreen() {
         <Button onPress={requestPermission}>
           <Text>Permitir cámara</Text>
         </Button>
-        <Button variant="ghost" className="mt-2" onPress={() => router.back()}>
+        <Button variant="ghost" className="mt-2" onPress={() => router.replace('/demo' as RelativePathString)}>
           <Text className="text-muted-foreground text-sm">Volver</Text>
         </Button>
       </View>
@@ -128,7 +128,7 @@ export function ARRouteScreen() {
         <Text className="text-center text-foreground mb-4 text-base">
           No hay ruta guardada.{'\n'}Dibuja y guarda una ruta primero.
         </Text>
-        <Button onPress={() => router.back()}>
+        <Button onPress={() => router.replace('/demo' as RelativePathString)}>
           <Text>Volver al editor</Text>
         </Button>
       </View>
@@ -147,7 +147,7 @@ export function ARRouteScreen() {
       <View style={styles.backButton}>
         <Button
           variant="secondary"
-          onPress={() => router.back()}
+          onPress={() => router.replace('/demo' as RelativePathString)}
           className="rounded-full w-14 h-14 p-0 items-center justify-center"
         >
           <Icon as={ChevronLeft} size={20} />

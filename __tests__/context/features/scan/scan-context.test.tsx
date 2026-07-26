@@ -76,4 +76,40 @@ describe('ScanContext', () => {
     await waitFor(() => expect(result.current.error).toBeTruthy());
     expect(result.current.loading).toBe(false);
   });
+
+  describe('portadas', () => {
+    it('exposes the portada once it resolves', async () => {
+      const repo = makeScanRepo({ fetchPortada: jest.fn().mockResolvedValue('file://portada.jpg') });
+      const { result } = renderHook(() => useScan(), { wrapper: makeWrapper(repo) });
+
+      await waitFor(() => expect(result.current.portadas['se1']).toBe('file://portada.jpg'));
+      expect(repo.fetchPortada).toHaveBeenCalledWith('se1');
+    });
+
+    it('reintenta cuando la primera carga falla, sin exigir recargar la app', async () => {
+      // Este era el bug: un fallo puntual dejaba la tarjeta sin imagen para
+      // siempre, porque nada volvía a intentarlo en toda la sesión.
+      const fetchPortada = jest.fn()
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValue('file://portada.jpg');
+      const repo = makeScanRepo({ fetchPortada });
+      const { result } = renderHook(() => useScan(), { wrapper: makeWrapper(repo) });
+
+      await waitFor(() => expect(result.current.portadas['se1']).toBe('file://portada.jpg'), {
+        timeout: 5000,
+      });
+      expect(fetchPortada.mock.calls.length).toBeGreaterThan(1);
+    });
+
+    it('se rinde tras agotar los reintentos y no rompe la lista', async () => {
+      const fetchPortada = jest.fn().mockResolvedValue(null);
+      const repo = makeScanRepo({ fetchPortada });
+      const { result } = renderHook(() => useScan(), { wrapper: makeWrapper(repo) });
+
+      await waitFor(() => expect(result.current.scans).toHaveLength(1));
+      await waitFor(() => expect(fetchPortada).toHaveBeenCalledTimes(3), { timeout: 5000 });
+      expect(result.current.portadas['se1']).toBeUndefined();
+      expect(result.current.error).toBeNull();
+    });
+  });
 });
