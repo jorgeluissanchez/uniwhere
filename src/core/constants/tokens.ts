@@ -19,4 +19,7 @@ export const TOKENS = {
   MeshPickerDS: Symbol('MeshPickerDS'),
   MeshLoaderDS: Symbol('MeshLoaderDS'),
   MeshRepo:     Symbol('MeshRepo'),
+  // walk (PLO dentro de AR)
+  WalkArCameraDS: Symbol('WalkArCameraDS'),
+  WalkRepo:       Symbol('WalkRepo'),
 } as const;

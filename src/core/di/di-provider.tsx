@@ -23,6 +23,9 @@ import { MeshFilePickerDataSourceImpl } from "@/features/mesh-viewer/data/dataso
 import { MeshLoaderDataSourceImpl } from "@/features/mesh-viewer/data/datasources/mesh-loader-data-source-impl";
 import { MeshRepositoryImpl } from "@/features/mesh-viewer/data/repositories/mesh-repository-impl";
 
+import { ArCameraViroDataSourceImpl } from "@/features/walk/data/datasources/ar-camera-viro-data-source-impl";
+import { WalkRepositoryImpl } from "@/features/walk/data/repositories/walk-repository-impl";
+
 const DIContext = createContext<Container | null>(null);
 
 type DIProviderProps = {
@@ -73,6 +76,12 @@ export function DIProvider({ children, overrides }: DIProviderProps) {
         c.register(TOKENS.MeshPickerDS, meshPickerDS)
          .register(TOKENS.MeshLoaderDS, meshLoaderDS)
          .register(TOKENS.MeshRepo,     meshRepo);
+
+        // walk (PLO dentro de AR)
+        const walkCameraDS = new ArCameraViroDataSourceImpl();
+        const walkRepo     = new WalkRepositoryImpl(walkCameraDS);
+        c.register(TOKENS.WalkArCameraDS, walkCameraDS)
+         .register(TOKENS.WalkRepo,       walkRepo);
 
         // Apply test overrides last so they win over real implementations
         overrides?.forEach((value, token) => c.register(token, value));

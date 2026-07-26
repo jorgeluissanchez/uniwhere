@@ -30,12 +30,15 @@ module.exports = {
     '^expo-image$': '<rootDir>/__tests__/setup/mocks/expo-image.js',
     '^react-native-reanimated$': '<rootDir>/__tests__/setup/mocks/reanimated.js',
     '^react-native-worklets$': '<rootDir>/__tests__/setup/mocks/reanimated.js',
+    // Viro expone un runtime nativo; en Jest no tenemos ARCore/ARKit, así que
+    // apuntamos a un mock con todos los componentes como no-op.
+    '^@reactvision/react-viro$': '<rootDir>/__tests__/setup/mocks/react-viro.js',
   },
   transformIgnorePatterns: [
     // pnpm stores packages under node_modules/.pnpm/<name>@<version>/node_modules/<name>,
     // so the allow-list must also match right after an optional `.pnpm/` segment, where
     // scope separators are `+` instead of `/`.
-    'node_modules/(?!(\\.pnpm/)?((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?[/+].*|@expo-google-fonts[/+].*|react-navigation|@react-navigation[/+].*|@rn-primitives[/+].*|nativewind|tailwind-merge|class-variance-authority|three([/+].*)?))',
+    'node_modules/(?!(\\.pnpm/)?((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?[/+].*|@expo-google-fonts[/+].*|react-navigation|@react-navigation[/+].*|@rn-primitives[/+].*|nativewind|tailwind-merge|class-variance-authority|three([/+].*)?|@reactvision[/+].*))',
   ],
   collectCoverageFrom: [
     'src/features/**/*.{ts,tsx}',
@@ -55,6 +58,9 @@ module.exports = {
     '!src/features/viewer/presentation/components/fps-counter.tsx',
     // AR camera components require a native camera context
     '!src/features/ar/presentation/components/**',
+    // Walk-VR mode requires the Viro native runtime, which has no Jest
+    // equivalent. The data source and pure utilities are covered elsewhere.
+    '!src/features/walk/**',
     // Platform-specific hooks (color scheme, theme) — need native API
     '!src/core/hooks/**',
     // Localization UI markers depend on map/canvas primitives unavailable in Jest

@@ -41,6 +41,14 @@ nativeWindConfig.resolver.resolveRequest = (ctx, moduleName, platform) => {
   if (moduleName === '@react-three/fiber/native') {
     return { filePath: require.resolve('@react-three/fiber/native'), type: 'sourceFile' };
   }
+  // Viro ships Flow sources and an empty exports map; resolve the main entry
+  // directly so Metro doesn't get confused by the bare package URL.
+  if (moduleName === '@reactvision/react-viro') {
+    return {
+      filePath: require.resolve('@reactvision/react-viro/dist/index.js'),
+      type: 'sourceFile',
+    };
+  }
   return upstream ? upstream(ctx, moduleName, platform) : ctx.resolveRequest(ctx, moduleName, platform);
 };
 

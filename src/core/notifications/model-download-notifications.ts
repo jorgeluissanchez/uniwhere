@@ -10,25 +10,26 @@ import { Platform } from 'react-native';
  *
  * En web se usa `model-download-notifications.web.ts`, que son no-ops; este
  * archivo solo entra en los bundles nativos.
+ *
+ * Importante: NO importamos `expo-notifications` desde su root. El paquete
+ * root (`dist/index.js`) re-exporta `getExpoPushTokenAsync`, que al
+ * evaluarse despliega un side-effect que registra un push-token listener,
+ * el cual en Expo Go emite el warning
+ *   "Android Push notifications (remote notifications) functionality
+ *    provided by expo-notifications was removed from Expo Go with the
+ *    release of SDK 53."
+ * Como no usamos push tokens, importamos sólo los sub-módulos que sí
+ * necesitamos: handler, permisos, scheduling y canal Android. Esos
+ * sub-módulos no tienen el side-effect.
  */
 
 const ANDROID_CHANNEL_ID = 'model-downloads';
 
-// `AndroidImportance` está en NotificationChannelManager.types, no en el
+// `AndroidImportance` está en `NotificationChannelManager.types`, no en el
 // re-export raíz de expo-notifications. Como solo nos importa el valor del
 // default (5), lo dejamos como literal para no depender de un deep path.
 const ANDROID_IMPORTANCE_DEFAULT = 5;
 
-// Las notificaciones push remotas fueron removidas de Expo Go a partir del
-// SDK 53. Además del warning audible, parte de la binary de notificaciones
-// asume APIs nativas que Expo Go no expone en SDK 55+. Skip total en Expo Go
-// para no envenenar la consola ni romper el módulo.
-//
-// Como el warning se emite en *import-time* (al evaluar `expo-notifications`,
-// un side-effect de `getExpoPushTokenAsync.js`), el import aquí es dinámico
-// y memoizado: la primera llamada carga el módulo (y emite el warning),
-// después lo reutilizamos. Si estamos en Expo Go, ni siquiera llegamos a
-// importarlo.
 let isExpoGo: boolean | undefined;
 async function detectExpoGo(): Promise<boolean> {
   if (isExpoGo !== undefined) return isExpoGo;
@@ -41,7 +42,17 @@ async function detectExpoGo(): Promise<boolean> {
   return isExpoGo;
 }
 
-type NotificationsApi = typeof import('expo-notifications');
+type NotificationsApi = {
+  setNotificationHandler: typeof import('expo-notifications/build/NotificationsHandler').setNotificationHandler;
+  getPermissionsAsync: () => Promise<{ granted: boolean; canAskAgain: boolean }>;
+  requestPermissionsAsync: () => Promise<{ granted: boolean }>;
+  setNotificationChannelAsync: (
+    id: string,
+    config: { name: string; importance: number },
+  ) => Promise<unknown>;
+  scheduleNotificationAsync: typeof import('expo-notifications/build/scheduleNotificationAsync').scheduleNotificationAsync;
+};
+
 let NotificationsMod: NotificationsApi | null | undefined;
 async function getNotifications(): Promise<NotificationsApi | null> {
   if (NotificationsMod !== undefined) return NotificationsMod;
@@ -49,7 +60,20 @@ async function getNotifications(): Promise<NotificationsApi | null> {
     NotificationsMod = null;
     return null;
   }
-  NotificationsMod = await import('expo-notifications');
+  // Importamos sólo los sub-módulos que necesitamos, no el `index.js` raíz.
+  const [handler, permissions, channel, schedule] = await Promise.all([
+    import('expo-notifications/build/NotificationsHandler'),
+    import('expo-notifications/build/NotificationPermissions'),
+    import('expo-notifications/build/setNotificationChannelAsync'),
+    import('expo-notifications/build/scheduleNotificationAsync'),
+  ]);
+  NotificationsMod = {
+    setNotificationHandler: handler.setNotificationHandler,
+    getPermissionsAsync: permissions.getPermissionsAsync,
+    requestPermissionsAsync: permissions.requestPermissionsAsync,
+    setNotificationChannelAsync: channel.setNotificationChannelAsync,
+    scheduleNotificationAsync: schedule.scheduleNotificationAsync,
+  };
   return NotificationsMod;
 }
 
@@ -105,11 +129,6 @@ export async function ensureNotificationPermission(): Promise<boolean> {
 
 /**
  * Avisa que un modelo quedó listo.
- *
- * `onOpen` existe por paridad con la versión web, donde el clic en la
- * notificación puede enfocar la pestaña y navegar. Aquí no se usa: tocar una
- * notificación del sistema solo abre la app, y encaminarla a una pantalla
- * concreta requiere manejar la respuesta con deep links.
  *
  * Limitación real: esto se dispara desde JS, así que solo llega si el proceso
  * sigue vivo cuando la descarga termina. Si el sistema operativo suspendió o

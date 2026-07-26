@@ -10,7 +10,8 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "infoPlist": {
-        "NSCameraUsageDescription": "UniWhere uses the camera for the AR route visualization experience."
+        "NSCameraUsageDescription": "UniWhere uses the camera for the AR route visualization experience.",
+        "UIRequiredDeviceCapabilities": ["armv7", "arkit"]
       }
     },
     "android": {
@@ -87,7 +88,12 @@
       "expo-secure-store",
       "expo-notifications",
       "./plugins/withLargeHeap",
-      "expo-asset"
+      "expo-asset",
+      [
+        "@reactvision/react-viro",
+        {}
+      ],
+      "./plugins/withARCore"
     ],
     "experiments": {
       "typedRoutes": true,

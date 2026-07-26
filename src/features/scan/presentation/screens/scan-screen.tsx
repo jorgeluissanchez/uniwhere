@@ -467,6 +467,22 @@ export function ScanScreen() {
                 <Text>Probar VPS</Text>
               </Button>
 
+              <Button
+                variant="secondary"
+                disabled={viewBusy || !selectedScan?.localUri}
+                onPress={() => {
+                  const scan = selectedScan;
+                  if (!scan) return;
+                  // Reusa el ViewerContext ya montado globalmente: cargar el
+                  // PLY antes de navegar para que la pantalla walk-view lo
+                  // encuentre en `viewerContext.cloud`.
+                  setSelectedScan(null);
+                  router.push({ pathname: '/walk-view' as any, params: { localUri: scan.localUri ?? '' } });
+                }}
+              >
+                <Text>Recorrer en VR</Text>
+              </Button>
+
               <Button variant="ghost" onPress={handleDelete} disabled={viewBusy}>
                 <Text className="text-destructive text-sm">Eliminar</Text>
               </Button>
