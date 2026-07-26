@@ -140,6 +140,19 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+/**
+ * Columnas del grid según el ancho **del propio grid**, no el de la ventana.
+ *
+ * La diferencia importa: `useWindowDimensions()` es una métrica global y en
+ * Android cambia cuando hay un `Modal` montado — el drawer de este mismo
+ * archivo. Con el drawer abierto el ancho reportado cruzaba el breakpoint, el
+ * grid pasaba de una columna a varias y las cards se encogían a la mitad. El
+ * síntoma visible era el botón: "Ver detalles" dejaba de caber en una línea,
+ * envolvía, y solo se leía "Ver".
+ *
+ * Midiendo el contenedor real con `onLayout` el valor no depende de qué otras
+ * ventanas haya montadas.
+ */
 function columnsForWidth(width: number): number {
   if (width < 640) return 1;
   if (width < 900) return 2;
@@ -153,8 +166,12 @@ export function ScanScreen() {
   const { loadFromPath, loadFile } = useViewer();
   const locCtx = useLocalization();
 
-  const { width } = useWindowDimensions();
-  const columns = columnsForWidth(width);
+  // `null` hasta el primer `onLayout`. Se arranca con el ancho de ventana solo
+  // para no pintar un layout equivocado en el primer frame; a partir de ahí
+  // manda la medida real del contenedor.
+  const [gridWidth, setGridWidth] = useState<number | null>(null);
+  const { width: windowWidth } = useWindowDimensions();
+  const columns = columnsForWidth(gridWidth ?? windowWidth);
 
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPlyAlert, setShowPlyAlert] = useState(false);
@@ -309,7 +326,15 @@ export function ScanScreen() {
           // El `localUri` viaja en el payload, así que tocar la notificación
           // abre el modelo sin depender de que el registro remoto se haya
           // actualizado.
-          if (inBackground) await notifyReady(uri);
+          if (inBackground) {
+            await notifyReady(uri);
+            // A partir de aquí manda la notificación, no el drawer: la
+            // interacción que lo abrió ya terminó. Si se deja montado, tocar la
+            // notificación navega al visor pero el drawer —que es un Modal, y
+            // por tanto se dibuja por encima de todo el stack— queda tapando la
+            // pantalla nueva.
+            setSelectedScanId(null);
+          }
 
           // La notificación de progreso dejó de ser cierta en cuanto terminó la
           // descarga. `force` porque el throttle de progreso descartaría este
@@ -340,6 +365,9 @@ export function ScanScreen() {
       // descarga), no lo arrastramos al visor: le avisamos y que entre él.
       if (leftApp || AppState.currentState !== 'active') {
         await notifyReady(uri);
+        // Igual que en la rama nativa: el drawer no puede sobrevivir al
+        // handoff, o tapa la pantalla a la que lleva la notificación.
+        setSelectedScanId(null);
         return;
       }
 
@@ -406,6 +434,12 @@ export function ScanScreen() {
           <View
             className="flex-row flex-wrap"
             style={{ marginHorizontal: -GRID_GAP / 2 }}
+            onLayout={(e) => {
+              const next = e.nativeEvent.layout.width;
+              // Se ignoran los cambios sub-pixel: `onLayout` se dispara en cada
+              // reflow y un `setState` incondicional aquí es un bucle.
+              setGridWidth((prev) => (prev !== null && Math.abs(prev - next) < 1 ? prev : next));
+            }}
           >
             {scans.map(scan => (
               <View
