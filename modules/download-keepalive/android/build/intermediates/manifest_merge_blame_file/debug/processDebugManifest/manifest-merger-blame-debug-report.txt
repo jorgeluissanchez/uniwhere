@@ -1,0 +1,30 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.uninorte.uniwhere.keepalive" >
+4
+5    <uses-sdk android:minSdkVersion="24" />
+6    <!--
+7    FOREGROUND_SERVICE_DATA_SYNC es obligatorio desde Android 14 (API 34) para
+8    poder declarar el tipo `dataSync`; sin él `startForeground` lanza
+9    SecurityException. FOREGROUND_SERVICE cubre las versiones anteriores.
+10    -->
+11    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+11-->C:\Users\Administrador\Desktop\uniwhere\modules\download-keepalive\android\src\main\AndroidManifest.xml:7:3-75
+11-->C:\Users\Administrador\Desktop\uniwhere\modules\download-keepalive\android\src\main\AndroidManifest.xml:7:20-72
+12    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+12-->C:\Users\Administrador\Desktop\uniwhere\modules\download-keepalive\android\src\main\AndroidManifest.xml:8:3-85
+12-->C:\Users\Administrador\Desktop\uniwhere\modules\download-keepalive\android\src\main\AndroidManifest.xml:8:20-82
+13
+14    <application>
+14-->C:\Users\Administrador\Desktop\uniwhere\modules\download-keepalive\android\src\main\AndroidManifest.xml:10:3-15:17
+15        <service
+15-->C:\Users\Administrador\Desktop\uniwhere\modules\download-keepalive\android\src\main\AndroidManifest.xml:11:5-14:50
+16            android:name="com.uninorte.uniwhere.keepalive.DownloadKeepAliveService"
+16-->C:\Users\Administrador\Desktop\uniwhere\modules\download-keepalive\android\src\main\AndroidManifest.xml:12:7-47
+17            android:exported="false"
+17-->C:\Users\Administrador\Desktop\uniwhere\modules\download-keepalive\android\src\main\AndroidManifest.xml:13:7-31
+18            android:foregroundServiceType="dataSync" />
+18-->C:\Users\Administrador\Desktop\uniwhere\modules\download-keepalive\android\src\main\AndroidManifest.xml:14:7-47
+19    </application>
+20
+21</manifest>

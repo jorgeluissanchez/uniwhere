@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.uninorte.uniwhere.keepalive" >
+
+    <uses-sdk android:minSdkVersion="24" />
+    <!--
+    FOREGROUND_SERVICE_DATA_SYNC es obligatorio desde Android 14 (API 34) para
+    poder declarar el tipo `dataSync`; sin él `startForeground` lanza
+    SecurityException. FOREGROUND_SERVICE cubre las versiones anteriores.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <application>
+        <service
+            android:name="com.uninorte.uniwhere.keepalive.DownloadKeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+    </application>
+
+</manifest>
