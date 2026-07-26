@@ -1,90 +1,74 @@
 /**
- * Canvas Three.js con la nube de puntos del PLY y la cámara Three.js
- * sincronizada a la pose AR (vía `useWalkPose`).
+ * Canvas Three.js con la nube de puntos del PLY, con la cámara Three.js
+ * atada 1:1 a la pose AR (vía `useWalkPose`).
  *
- * Estrategia:
- *   - Cada frame, copiamos la pose de Viro a la cámara Three.js.
- *   - Sumamos el vector de caminata (joystick) escalado por dt y velocidad.
- *   - El suelo lo fija el suelo del boundingBox del PLY (no la pose Y de Viro).
- *   - Hasta que Viro reporte pose (`poseRef.ready`), la cámara no se mueve.
+ * Movimiento: no hay joystick ni velocidad. La pose que publica ARCore /
+ * ARKit ya *es* el movimiento físico del usuario en metros reales, así que
+ * copiarla directo a la cámara hace que caminar en la habitación equivalga a
+ * caminar dentro del PLY. Cualquier desplazamiento sintético sumado encima
+ * rompería esa correspondencia.
  *
- * Resultado: la cámara está en coordenadas del PLY (metros reales), pero su
- * orientación vive en el frame AR. El boundingBox del PLY está centrado
- * (ver `PlyRepositoryImpl.parse()`), por lo que la `centeringOffset` se
- * aplica sobre la base del anchor para que el suelo del PLY coincida con
- * el plano detectado.
+ * Colocación del PLY: la geometría viene centrada en el origen
+ * (`PlyRepositoryImpl.parse()` llama a `geometry.center()`), mientras que el
+ * origen del mundo AR está a la altura del teléfono al arrancar la sesión, no
+ * en el piso. Sin corregirlo el usuario aparece parado en el centro
+ * geométrico del modelo, con la mitad de la nube bajo sus pies. El `<group>`
+ * baja la nube para que su suelo (`boundingBox.min.y`) caiga en el piso real,
+ * a `-eyeHeight` del origen AR, y la desplaza/rota según el anchor elegido.
  */
 import { useFrame, useThree } from "@react-three/fiber/native";
-import React, { useRef } from "react";
-import * as THREE from "three";
+import React, { useMemo } from "react";
 
-import { PointCloud3D } from "@/features/viewer/presentation/components/point-cloud-3d";
 import { PlyCloud } from "@/features/viewer/domain/entities/ply-cloud";
 
-import { WalkVectorRef } from "../hooks/use-walk-joystick";
+import { WalkAnchor } from "../hooks/use-walk-anchoring";
 import { WalkPoseRef } from "../hooks/use-walk-pose";
-import {
-  integrate,
-  walkDirection,
-} from "../utils/walk-vector";
+
+/**
+ * Tamaño del punto en metros. A escala real (0.005 m = 5 mm) la nube es
+ * literalmente invisible a más de un par de metros: cada punto cae por debajo
+ * del pixel. 2 cm es lo mínimo que se lee como superficie caminando.
+ */
+const POINT_SIZE = 0.02;
 
 type Props = {
   cloud: PlyCloud;
   poseRef: WalkPoseRef;
-  walkVectorRef: WalkVectorRef;
-  /** Velocidad actual (m/s). Compartida con el HUD. */
-  speed: number;
-  /** Altura del usuario sobre el suelo del PLY. */
+  /** Altura estimada del teléfono sobre el piso al iniciar la sesión AR. */
   eyeHeight: number;
+  /** Dónde plantar el PLY dentro del mundo AR. */
+  anchor: WalkAnchor;
 };
 
-export function WalkCanvas({ cloud, poseRef, walkVectorRef, speed, eyeHeight }: Props) {
+export function WalkCanvas({ cloud, poseRef, eyeHeight, anchor }: Props) {
   const { camera } = useThree();
-  const skyY = useRef(eyeHeight);
 
-  useFrame((_state, dt) => {
+  // Cuánto hay que bajar la nube para que su suelo coincida con el piso real.
+  const groundOffsetY = useMemo(
+    () => -cloud.boundingBox.min.y - eyeHeight,
+    [cloud.boundingBox, eyeHeight],
+  );
+
+  useFrame(() => {
     // Sin pose de Viro, no movemos la cámara (todavía no hay AR).
     if (!poseRef.ready) return;
-
-    // 1. Posición y rotación desde Viro.
-    camera.position.copy(poseRef.position);
-    camera.quaternion.copy(poseRef.quaternion);
-
-    // 2. Vector de caminata en world-space.
-    const direction = walkDirection(poseRef.yaw, {
-      x: walkVectorRef.x,
-      z: walkVectorRef.z,
-    });
-
-    if (direction) {
-      // El suelo del PLY (en coords centradas): `boundingBox.min.y`.
-      // La pose Y de Viro viene en metros absolutos del mundo AR; sumamos
-      // el offset del anchor y la altura del ojo.
-      const floorY = cloud.boundingBox.min.y + eyeHeight;
-      const next = integrate(camera.position, direction, speed, dt, floorY);
-      camera.position.x = next.x;
-      camera.position.z = next.z;
-      camera.position.y = floorY;
-      skyY.current = floorY;
-    } else {
-      camera.position.y = skyY.current;
-    }
-  });
-
-  return <PointCloud3D geometry={cloud.geometry} />;
-}
-
-/**
- * Variante "ghost": no renderiza puntos, sólo la cámara. Útil durante el
- * momento previo al anchor (cuando Viro ya está entregando pose pero el
- * PLY aún no debe aparecer).
- */
-export function WalkCameraOnly({ poseRef }: { poseRef: WalkPoseRef }) {
-  const { camera } = useThree();
-  useFrame(() => {
-    if (!poseRef.ready) return;
     camera.position.copy(poseRef.position);
     camera.quaternion.copy(poseRef.quaternion);
   });
-  return null;
+
+  return (
+    <group
+      position={[anchor.x, groundOffsetY, anchor.z]}
+      rotation={[0, anchor.yaw, 0]}
+    >
+      <points geometry={cloud.geometry}>
+        <pointsMaterial
+          size={POINT_SIZE}
+          sizeAttenuation
+          vertexColors={cloud.geometry.hasAttribute("color")}
+          color={cloud.geometry.hasAttribute("color") ? undefined : "#cccccc"}
+        />
+      </points>
+    </group>
+  );
 }

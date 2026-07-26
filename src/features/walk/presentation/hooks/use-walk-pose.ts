@@ -7,7 +7,7 @@
  */
 import { useDI } from "@/core/di/di-provider";
 import { TOKENS } from "@/core/constants/tokens";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { ArCameraPose } from "../../data/datasources/ar-camera-data-source";
@@ -35,10 +35,16 @@ function createInitialPose(): WalkPoseRef {
   };
 }
 
-export function useWalkPose(): WalkPoseRef {
+/**
+ * `ready` se expone además como state porque la UI (HUD, botón de recentrar)
+ * necesita re-renderizar cuando el AR arranca, y una mutación sobre el ref no
+ * dispara render. Sólo cambia una vez, en el primer frame de pose.
+ */
+export function useWalkPose(): { poseRef: WalkPoseRef; ready: boolean } {
   const di = useDI();
   const repo = di.resolve<{ getArCamera(): { onPoseUpdate(cb: (p: ArCameraPose) => void): () => void } }>(TOKENS.WalkRepo);
   const poseRef = useRef<WalkPoseRef>(createInitialPose());
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const cam = repo.getArCamera();
@@ -52,10 +58,13 @@ export function useWalkPose(): WalkPoseRef {
       );
       poseRef.current.yaw = pose.yaw;
       poseRef.current.timestamp = pose.timestamp;
-      poseRef.current.ready = true;
+      if (!poseRef.current.ready) {
+        poseRef.current.ready = true;
+        setReady(true);
+      }
     });
     return unsub;
   }, [repo]);
 
-  return poseRef.current;
+  return { poseRef: poseRef.current, ready };
 }

@@ -1,23 +1,20 @@
 /**
- * HUD mínimo en la esquina superior derecha: muestra la velocidad actual
- * y, si la pose AR está lista, la altura del ojo sobre el suelo del PLY.
+ * HUD mínimo en la esquina superior derecha: estado del tracking AR y, una
+ * vez listo, un recordatorio de que el movimiento es físico.
  */
 import { Text } from "@/core/components/ui/text";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 
 type Props = {
-  speed: number;       // m/s actuales
-  eyeHeight: number;   // altura del ojo sobre el suelo del PLY
   poseReady: boolean;
 };
 
-export function WalkHud({ speed, eyeHeight, poseReady }: Props) {
+export function WalkHud({ poseReady }: Props) {
   return (
     <View style={styles.hud} pointerEvents="none">
-      <Text style={styles.line}>{speed.toFixed(1)} m/s</Text>
       <Text style={styles.line}>
-        {poseReady ? `Ojo: ${eyeHeight.toFixed(2)} m` : "Iniciando AR…"}
+        {poseReady ? "Caminá para moverte" : "Iniciando AR…"}
       </Text>
     </View>
   );

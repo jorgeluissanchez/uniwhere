@@ -4,9 +4,13 @@
  * Estructura:
  *   <View fill>
  *     <ViroARSceneNavigator />        // cámara AR + pose (z-order 0)
- *     <Canvas r3f>                    // PLY en Three.js (z-order 1)
- *     <Overlays />                    // botones, HUD, joystick (z-order 2+)
+ *     <Canvas r3f>                    // PLY en Three.js (z-order 1, alpha)
+ *     <Overlays />                    // botones, HUD (z-order 2+)
  *   </View>
+ *
+ * Movimiento: el usuario camina de verdad. La pose de ARCore/ARKit se copia
+ * 1:1 a la cámara de Three.js, así que un metro en la habitación es un metro
+ * dentro del PLY. No hay joystick ni control de velocidad.
  *
  * Sobre Expo Go: Viro llama a `NativeModules.VRTMaterialManager` y
  * `NativeModules.VRTAnimationModule` en *evaluación de módulo*. Esos
@@ -30,18 +34,20 @@ import { Text } from "@/core/components/ui/text";
 import { useViewer } from "@/features/viewer/presentation/context/viewer-context";
 import { Canvas } from "@react-three/fiber/native";
 import { useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { WalkCanvas } from "../components/walk-canvas";
 import { WalkControlsOverlay } from "../components/walk-controls-overlay";
 import { WalkHud } from "../components/walk-hud";
-import { WalkJoystick } from "../components/walk-joystick";
 import { useWalkAnchoring } from "../hooks/use-walk-anchoring";
-import { useWalkJoystick } from "../hooks/use-walk-joystick";
 import { useWalkPose } from "../hooks/use-walk-pose";
-import { WALK_SPEED_DEFAULT, WALK_SPEED_RUN } from "../utils/walk-vector";
 
+/**
+ * Altura asumida del teléfono sobre el piso al arrancar la sesión AR. El
+ * origen del mundo AR nace ahí, no en el suelo, así que se usa para bajar el
+ * PLY hasta el piso real.
+ */
 const EYE_HEIGHT = 1.65;  // m
 
 // Lazy: Viro's module evaluation crashes in Expo Go. We only resolve
@@ -86,10 +92,8 @@ function ExpoGoFallback() {
 export function WalkViewScreen() {
   const { cloud, loading, error, loadFromPath } = useViewer();
   const params = useLocalSearchParams<{ localUri?: string }>();
-  const poseRef = useWalkPose();
-  const joystick = useWalkJoystick();
+  const { poseRef, ready: poseReady } = useWalkPose();
   const anchoring = useWalkAnchoring();
-  const [running, setRunning] = useState(false);
   const [isExpoGo, setIsExpoGo] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -101,18 +105,6 @@ export function WalkViewScreen() {
       void loadFromPath(params.localUri);
     }
   }, [cloud, params.localUri, loading, loadFromPath]);
-
-  const speed = running ? WALK_SPEED_RUN : WALK_SPEED_DEFAULT;
-
-  // El offset del PLY en coords centradas (para Viro).
-  const offset = useMemo<readonly [number, number, number]>(() => {
-    if (!cloud) return [0, 0, 0];
-    return [
-      cloud.centeringOffset.x,
-      cloud.centeringOffset.y,
-      cloud.centeringOffset.z,
-    ];
-  }, [cloud]);
 
   if (isExpoGo === null) {
     return (
@@ -139,40 +131,43 @@ export function WalkViewScreen() {
 
   return (
     <View style={styles.container}>
-      {/* 1. Viro AR: cámara + plane detection + pose. Lazy para no romper Expo Go. */}
+      {/* 1. Viro AR: cámara + pose. Lazy para no romper Expo Go. */}
       <React.Suspense fallback={null}>
-        <LazyWalkArScene offset={offset} />
+        <LazyWalkArScene />
       </React.Suspense>
 
-      {/* 2. PLY en Three.js, sincronizado a la pose. */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {/* 2. PLY en Three.js, sincronizado a la pose.
+          El Canvas va con alpha: sin `gl.alpha` el WebGLRenderer limpia con
+          negro opaco y tapa por completo el feed de la cámara de Viro — el
+          PLY "no aparece" porque la pantalla entera es su clear color. */}
+      <View style={styles.canvasLayer} pointerEvents="none">
         <Canvas
-          camera={{ fov: 75, near: 0.05, far: 100, position: [0, EYE_HEIGHT, 0] }}
+          style={styles.canvas}
+          gl={{ alpha: true, premultipliedAlpha: false }}
+          onCreated={({ gl, scene }) => {
+            scene.background = null;
+            gl.setClearColor(0x000000, 0);
+          }}
+          camera={{ fov: 75, near: 0.05, far: 200, position: [0, 0, 0] }}
           frameloop="always"
         >
           <WalkCanvas
             cloud={cloud}
             poseRef={poseRef}
-            walkVectorRef={joystick.walkVectorRef.current}
-            speed={speed}
             eyeHeight={EYE_HEIGHT}
+            anchor={anchoring.anchor}
           />
         </Canvas>
       </View>
 
       {/* 3. Botones de control. */}
       <WalkControlsOverlay
-        tracking={anchoring.state}
-        onAnchor={anchoring.anchor}
-        running={running}
-        onToggleRunning={() => setRunning((v) => !v)}
+        poseReady={poseReady}
+        onRecenter={() => anchoring.recenter(poseRef)}
       />
 
       {/* 4. HUD. */}
-      <WalkHud speed={speed} eyeHeight={EYE_HEIGHT} poseReady={poseRef.ready} />
-
-      {/* 5. Joystick. */}
-      <WalkJoystick joystick={joystick} />
+      <WalkHud poseReady={poseReady} />
     </View>
   );
 }
@@ -181,6 +176,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#000",
+  },
+  // Transparente en toda la pila: cualquier color de fondo aquí vuelve a
+  // tapar el feed de la cámara que renderiza Viro por debajo.
+  canvasLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "transparent",
+  },
+  canvas: {
+    flex: 1,
+    backgroundColor: "transparent",
   },
   loading: {
     flex: 1,

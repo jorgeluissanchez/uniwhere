@@ -32,12 +32,6 @@ jest.mock('@react-three/fiber/native', () => ({
   useThree: () => ({ camera: { position: { copy: () => {}, set: () => {} }, quaternion: { copy: () => {}, set: () => {} } } }),
 }));
 
-// Mock the joystick so we don't pull react-native-gesture-handler into the
-// test, which requires a GestureHandlerRootView to mount.
-jest.mock('@/features/walk/presentation/components/walk-joystick', () => ({
-  WalkJoystick: () => null,
-}));
-
 jest.mock('@/features/viewer/presentation/context/viewer-context');
 jest.mock('expo-router', () => ({
   useLocalSearchParams: jest.fn(),

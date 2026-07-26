@@ -26,20 +26,12 @@
  */
 import { useDI } from "@/core/di/di-provider";
 import { TOKENS } from "@/core/constants/tokens";
-import { ViroAmbientLight, ViroARScene, ViroARSceneNavigator, ViroNode } from "@reactvision/react-viro";
+import { ViroAmbientLight, ViroARScene, ViroARSceneNavigator } from "@reactvision/react-viro";
 import React, { useCallback } from "react";
 
 import { ArCameraViroDataSourceImpl } from "../../data/datasources/ar-camera-viro-data-source-impl";
 
-type Props = {
-  /**
-   * Offset del PLY en coords centradas. Aplicado al `<ViroNode>` raíz para
-   * que el centro del PLY coincida con el anchor de Viro.
-   */
-  offset: readonly [number, number, number];
-};
-
-export function WalkArScene({ offset }: Props) {
+export function WalkArScene() {
   const di = useDI();
   const cameraDS = di.resolve<ArCameraViroDataSourceImpl>(TOKENS.WalkArCameraDS);
 
@@ -65,7 +57,6 @@ export function WalkArScene({ offset }: Props) {
         scene: () => (
           <ViroARScene onCameraTransformUpdate={onCameraTransformUpdate}>
             <ViroAmbientLight color="#ffffff" intensity={1000} />
-            <ViroNode position={[-offset[0], -offset[1], -offset[2]]} />
           </ViroARScene>
         ),
       }}

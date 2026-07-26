@@ -1,8 +1,10 @@
 /**
  * Botones de control en la pantalla del modo walk:
- *   - "Anclar": fija la pose actual (sólo visible cuando Viro detectó un plano).
  *   - "Salir": vuelve al drawer del scan.
- *   - "Caminar / Correr": toggle de velocidad.
+ *   - "Recentrar aquí": replanta el PLY en la posición actual del usuario.
+ *
+ * No hay control de movimiento: el usuario se mueve caminando de verdad y la
+ * pose de ARCore/ARKit lo traslada dentro del modelo.
  *
  * `pointerEvents="box-none"` deja pasar los toques al GL de Viro, así que
  * los toques en zonas vacías no consumen el evento.
@@ -10,20 +12,17 @@
 import { Button } from "@/core/components/ui/button";
 import { Text } from "@/core/components/ui/text";
 import { useRouter } from "expo-router";
-import { Footprints, MoveRight, X } from "lucide-react-native";
+import { Crosshair, X } from "lucide-react-native";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 
-import { AnchoringState } from "../hooks/use-walk-anchoring";
-
 type Props = {
-  tracking: AnchoringState;
-  onAnchor: () => void;
-  running: boolean;
-  onToggleRunning: () => void;
+  /** True cuando Viro ya publicó pose; sin eso, recentrar no tiene sentido. */
+  poseReady: boolean;
+  onRecenter: () => void;
 };
 
-export function WalkControlsOverlay({ tracking, onAnchor, running, onToggleRunning }: Props) {
+export function WalkControlsOverlay({ poseReady, onRecenter }: Props) {
   const router = useRouter();
   return (
     <View style={styles.container} pointerEvents="box-none">
@@ -40,19 +39,10 @@ export function WalkControlsOverlay({ tracking, onAnchor, running, onToggleRunni
       </View>
 
       <View style={styles.bottomRow} pointerEvents="box-none">
-        <Button
-          variant={running ? "default" : "secondary"}
-          onPress={onToggleRunning}
-          testID="walk-toggle-speed"
-        >
-          <Footprints size={16} />
-          <Text>{running ? "Correr" : "Caminar"}</Text>
-        </Button>
-
-        {tracking === "detected" && (
-          <Button onPress={onAnchor} testID="walk-anchor">
-            <MoveRight size={16} />
-            <Text>Anclar</Text>
+        {poseReady && (
+          <Button onPress={onRecenter} testID="walk-recenter">
+            <Crosshair size={16} />
+            <Text>Recentrar aquí</Text>
           </Button>
         )}
       </View>
