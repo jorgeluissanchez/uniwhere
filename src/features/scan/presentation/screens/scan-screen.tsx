@@ -1,12 +1,15 @@
 import { reconstructionApiHeaders } from '@/core/lib/api-headers';
 import {
-  downloadWithProgress,
   DownloadProgress,
-  HttpStatusError,
   isPlyCached,
   modelDownloadUrl,
-  putPlyInCache,
 } from '@/core/lib/ply-cache';
+import {
+  downloadModelFile,
+  forgetModelDownload,
+  HttpDownloadError,
+  ModelDownloadHandle,
+} from '@/core/lib/model-download';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -77,20 +80,20 @@ function downloadLabel(progress: DownloadProgress | null): string {
   return `Descargando modelo… ${formatMegabytes(progress.loaded)}`;
 }
 
-/** Descarga el modelo traduciendo el código HTTP al mensaje que ve el usuario. */
+/**
+ * Descarga el modelo traduciendo el código HTTP al mensaje que ve el usuario.
+ *
+ * La transferencia la hace `downloadModelFile` en el stack nativo (sesión de
+ * background), no en el hilo de JS, así que sigue viva aunque el usuario salga
+ * de la app; devuelve el `file://` local ya escrito.
+ */
 async function downloadModel(
-  url: string,
-  signal: AbortSignal,
-  onProgress: (progress: DownloadProgress) => void,
-): Promise<ArrayBuffer> {
+  handle: ModelDownloadHandle,
+): Promise<string> {
   try {
-    return await downloadWithProgress(url, {
-      headers: reconstructionApiHeaders(),
-      signal,
-      onProgress,
-    });
+    return await handle.promise;
   } catch (e) {
-    if (e instanceof HttpStatusError) {
+    if (e instanceof HttpDownloadError) {
       if (e.status === 409) {
         throw new Error('El modelo aún no está listo. El procesamiento puede tardar varios minutos.');
       }
@@ -152,13 +155,13 @@ export function ScanScreen() {
     return () => { cancelled = true; };
   }, [selectedScan]);
 
-  // Aborta la descarga en curso; `cancelled` además evita que una carga que ya
+  // Cancela la descarga en curso; `cancelled` además evita que una carga que ya
   // no se puede abortar (el parseo del PLY) termine navegando al visor.
-  const abortRef = useRef<AbortController | null>(null);
+  const downloadRef = useRef<ModelDownloadHandle | null>(null);
   const cancelledRef = useRef(false);
 
   const closeDrawer = () => {
-    abortRef.current?.abort();
+    void downloadRef.current?.cancel();
     cancelledRef.current = true;
     setViewPhase('idle');
     setProgress(null);
@@ -171,8 +174,6 @@ export function ScanScreen() {
     const scan = selectedScan;
 
     cancelledRef.current = false;
-    const controller = new AbortController();
-    abortRef.current = controller;
     setActionError(null);
     setProgress(null);
 
@@ -188,15 +189,31 @@ export function ScanScreen() {
     // además exige que la petición nazca de un gesto.
     void configureModelDownloadNotifications().then(() => ensureNotificationPermission());
 
-    const notifyReady = () =>
-      notifyModelReady(displayName(scan.serie, scan.jobId), () => {
-        setSelectedScan(null);
-        router.push('/viewer' as RelativePathString);
+    // El `localUri` viaja en la notificación para que al tocarla el modelo se
+    // abra directo, sin que el usuario tenga que buscar el escaneo otra vez.
+    // Lo resuelve `ModelReadyBridge` en el layout raíz.
+    const notifyReady = (localUri: string) =>
+      notifyModelReady({
+        serie: displayName(scan.serie, scan.jobId),
+        scanId: scan._id,
+        localUri,
       });
 
     try {
       const remoteUrl = modelDownloadUrl(scan.jobId, scan.tipo);
       let uri: string;
+
+      const startDownload = (fileUri: string) => {
+        const handle = downloadModelFile({
+          key: scan._id,
+          url: remoteUrl,
+          fileUri,
+          headers: reconstructionApiHeaders(),
+          onProgress: setProgress,
+        });
+        downloadRef.current = handle;
+        return handle;
+      };
 
       if (Platform.OS === 'web') {
         // Se descarga aquí, y no dentro del visor, para poder informar el
@@ -204,9 +221,8 @@ export function ScanScreen() {
         uri = remoteUrl;
         if (!isDownloaded) {
           setViewPhase('downloading');
-          const buffer = await downloadModel(remoteUrl, controller.signal, setProgress);
+          await downloadModel(startDownload(remoteUrl));
           if (cancelledRef.current) return;
-          await putPlyInCache(remoteUrl, buffer);
         }
         if (cancelledRef.current) return;
         setViewPhase('preparing');
@@ -217,18 +233,18 @@ export function ScanScreen() {
           uri = localUri;
         } else {
           setViewPhase('downloading');
-          const buffer = await downloadModel(remoteUrl, controller.signal, setProgress);
-          const bytes = new Uint8Array(buffer);
+          // El destino se fija antes de arrancar: la sesión nativa escribe
+          // directo en ese archivo, así que una descarga que termina con la app
+          // en segundo plano deja el PLY completo en disco sin pasar por JS.
           const dest = new File(Paths.document, `${scan.jobId}_${scan.tipo ?? 'dense'}.ply`);
-          dest.write(bytes);
-          uri = dest.uri;
+          uri = await downloadModel(startDownload(dest.uri));
           await updateScan(scan._id, uri);
 
           if (cancelledRef.current) return;
           if (leftApp || AppState.currentState !== 'active') {
-            // Ya quedó guardado: avisamos y cortamos aquí. Al volver, el botón
-            // dirá "Ver Modelo" y abrirlo será instantáneo.
-            await notifyReady();
+            // Ya quedó guardado: avisamos y cortamos aquí. Tocar la
+            // notificación abre el modelo directamente.
+            await notifyReady(uri);
             return;
           }
         }
@@ -243,7 +259,7 @@ export function ScanScreen() {
       // Si el usuario se fue mientras cargaba (en web es donde ocurre toda la
       // descarga), no lo arrastramos al visor: le avisamos y que entre él.
       if (leftApp || AppState.currentState !== 'active') {
-        await notifyReady();
+        await notifyReady(uri);
         return;
       }
 
@@ -255,7 +271,7 @@ export function ScanScreen() {
       setActionError(e instanceof Error ? e.message : 'No se pudo cargar el modelo');
     } finally {
       appStateSub.remove();
-      abortRef.current = null;
+      downloadRef.current = null;
       setProgress(null);
       if (!cancelledRef.current) setViewPhase('idle');
     }
@@ -277,6 +293,9 @@ export function ScanScreen() {
 
   const handleDelete = async () => {
     if (!selectedScan) return;
+    // Sin esto, el estado de reanudación sobreviviría al scan y una descarga
+    // futura con el mismo id retomaría bytes de un modelo que ya no existe.
+    await forgetModelDownload(selectedScan._id);
     await deleteScan(selectedScan._id);
     setSelectedScan(null);
   };

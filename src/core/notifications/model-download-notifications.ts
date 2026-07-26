@@ -51,6 +51,8 @@ type NotificationsApi = {
     config: { name: string; importance: number },
   ) => Promise<unknown>;
   scheduleNotificationAsync: typeof import('expo-notifications/build/scheduleNotificationAsync').scheduleNotificationAsync;
+  addNotificationResponseReceivedListener: typeof import('expo-notifications/build/NotificationsEmitter').addNotificationResponseReceivedListener;
+  getLastNotificationResponseAsync: typeof import('expo-notifications/build/NotificationsEmitter').getLastNotificationResponseAsync;
 };
 
 let NotificationsMod: NotificationsApi | null | undefined;
@@ -61,11 +63,12 @@ async function getNotifications(): Promise<NotificationsApi | null> {
     return null;
   }
   // Importamos sólo los sub-módulos que necesitamos, no el `index.js` raíz.
-  const [handler, permissions, channel, schedule] = await Promise.all([
+  const [handler, permissions, channel, schedule, emitter] = await Promise.all([
     import('expo-notifications/build/NotificationsHandler'),
     import('expo-notifications/build/NotificationPermissions'),
     import('expo-notifications/build/setNotificationChannelAsync'),
     import('expo-notifications/build/scheduleNotificationAsync'),
+    import('expo-notifications/build/NotificationsEmitter'),
   ]);
   NotificationsMod = {
     setNotificationHandler: handler.setNotificationHandler,
@@ -73,6 +76,8 @@ async function getNotifications(): Promise<NotificationsApi | null> {
     requestPermissionsAsync: permissions.requestPermissionsAsync,
     setNotificationChannelAsync: channel.setNotificationChannelAsync,
     scheduleNotificationAsync: schedule.scheduleNotificationAsync,
+    addNotificationResponseReceivedListener: emitter.addNotificationResponseReceivedListener,
+    getLastNotificationResponseAsync: emitter.getLastNotificationResponseAsync,
   };
   return NotificationsMod;
 }
@@ -128,23 +133,93 @@ export async function ensureNotificationPermission(): Promise<boolean> {
 }
 
 /**
+ * Datos que viajan en la notificación para poder abrir el modelo al tocarla.
+ * Se manda el `localUri` ya resuelto: cuando el usuario toque, el archivo ya
+ * está en disco y abrirlo no requiere volver a consultar nada.
+ */
+export type ModelReadyPayload = {
+  serie: string;
+  scanId: string;
+  localUri: string;
+};
+
+/** Marca las notificaciones nuestras frente a cualquier otra de la app. */
+const MODEL_READY_KIND = 'model-ready';
+
+/**
  * Avisa que un modelo quedó listo.
  *
  * Limitación real: esto se dispara desde JS, así que solo llega si el proceso
- * sigue vivo cuando la descarga termina. Si el sistema operativo suspendió o
- * mató la app, la descarga se detiene y no hay notificación — no es un
- * background transfer nativo.
+ * sigue vivo cuando la descarga termina. La transferencia en sí ya es nativa
+ * (ver `model-download.ts`), pero el aviso no: si el sistema mató la app, el
+ * archivo puede quedar completo en disco sin que llegue notificación.
  */
-export async function notifyModelReady(serie: string, _onOpen?: () => void): Promise<void> {
+export async function notifyModelReady(payload: ModelReadyPayload): Promise<void> {
   const Notifications = await getNotifications();
   if (!Notifications) return;
   await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Modelo listo',
-      body: `${serie} terminó de descargarse. Ábrelo para verlo en 3D.`,
-      data: { serie },
+      body: `${payload.serie} terminó de descargarse. Ábrelo para verlo en 3D.`,
+      data: { kind: MODEL_READY_KIND, ...payload },
       ...(Platform.OS === 'android' ? { channelId: ANDROID_CHANNEL_ID } : {}),
     },
     trigger: null, // inmediata
   });
+}
+
+/** Extrae el payload si la respuesta corresponde a una notificación nuestra. */
+function readPayload(response: unknown): ModelReadyPayload | null {
+  const data = (response as { notification?: { request?: { content?: { data?: unknown } } } })
+    ?.notification?.request?.content?.data as Record<string, unknown> | undefined;
+  if (!data || data.kind !== MODEL_READY_KIND) return null;
+  const { serie, scanId, localUri } = data;
+  if (typeof serie !== 'string' || typeof scanId !== 'string' || typeof localUri !== 'string') {
+    return null;
+  }
+  return { serie, scanId, localUri };
+}
+
+/**
+ * Llama a `onOpen` cuando el usuario toca una notificación de modelo listo.
+ * Devuelve la función para desuscribirse.
+ *
+ * El listener se registra de forma asíncrona (el módulo de notificaciones se
+ * importa en diferido), así que la baja tiene que contemplar que la
+ * suscripción todavía no exista cuando el componente se desmonta.
+ */
+export function addModelReadyListener(
+  onOpen: (payload: ModelReadyPayload) => void,
+): () => void {
+  let subscription: { remove: () => void } | null = null;
+  let cancelled = false;
+
+  void getNotifications().then((Notifications) => {
+    if (!Notifications || cancelled) return;
+    subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const payload = readPayload(response);
+      if (payload) onOpen(payload);
+    });
+  });
+
+  return () => {
+    cancelled = true;
+    subscription?.remove();
+  };
+}
+
+/**
+ * La notificación que abrió la app desde cero, si la hubo.
+ *
+ * El listener de arriba no cubre este caso: cuando el toque es lo que arranca
+ * el proceso, el evento ya ocurrió antes de que hubiera JS escuchando.
+ */
+export async function getLaunchModelReady(): Promise<ModelReadyPayload | null> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return null;
+  try {
+    return readPayload(await Notifications.getLastNotificationResponseAsync());
+  } catch {
+    return null;
+  }
 }

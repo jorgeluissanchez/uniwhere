@@ -1,5 +1,6 @@
 import ToastProvider from '@/core/components/ui/toast';
 import { DIProvider } from '@/core/di/di-provider';
+import { ModelReadyBridge } from '@/core/notifications/model-ready-bridge';
 import { useAppTheme } from '@/core/hooks/use-app-theme';
 import { AppThemeProvider } from '@/core/providers/app-theme-provider';
 import { useTheme } from '@/core/hooks/use-theme';
@@ -60,6 +61,9 @@ function RootLayoutInner() {
                         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
                         <Stack.Screen name="(app)" options={{ headerShown: false }} />
                       </Stack>
+                      {/* Abre el modelo al tocar la notificación de descarga
+                          terminada. Va aquí dentro para tener router y viewer. */}
+                      <ModelReadyBridge />
                     </ToastProvider>
                     <PortalHost />
                   </ThemeProvider>

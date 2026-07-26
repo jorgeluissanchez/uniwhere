@@ -39,21 +39,45 @@ export async function ensureNotificationPermission(): Promise<boolean> {
   }
 }
 
+export type ModelReadyPayload = {
+  serie: string;
+  scanId: string;
+  localUri: string;
+};
+
 /**
- * Muestra la notificación de escritorio. `onOpen` se dispara al hacer clic:
- * enfoca la pestaña y deja que quien llama decida a dónde llevar al usuario.
+ * Suscriptores del clic en la notificación.
+ *
+ * En web no hay un emisor del sistema como en nativo: la `Notification` del
+ * navegador expone su propio `onclick`, así que el puente lo hacemos acá para
+ * que el resto de la app consuma la misma API en las dos plataformas.
  */
-export async function notifyModelReady(serie: string, onOpen?: () => void): Promise<void> {
+const listeners = new Set<(payload: ModelReadyPayload) => void>();
+
+/** Muestra la notificación de escritorio y avisa a los suscriptores al clic. */
+export async function notifyModelReady(payload: ModelReadyPayload): Promise<void> {
   if (!isSupported() || Notification.permission !== 'granted') return;
 
   const notification = new Notification('Modelo listo', {
-    body: `${serie} terminó de descargarse. Ábrelo para verlo en 3D.`,
-    tag: `model-ready-${serie}`, // evita apilar avisos del mismo modelo
+    body: `${payload.serie} terminó de descargarse. Ábrelo para verlo en 3D.`,
+    tag: `model-ready-${payload.serie}`, // evita apilar avisos del mismo modelo
   });
 
   notification.onclick = () => {
     window.focus();
     notification.close();
-    onOpen?.();
+    listeners.forEach((cb) => cb(payload));
   };
+}
+
+export function addModelReadyListener(
+  onOpen: (payload: ModelReadyPayload) => void,
+): () => void {
+  listeners.add(onOpen);
+  return () => { listeners.delete(onOpen); };
+}
+
+/** En web la pestaña no se relanza desde una notificación: nunca hay pendiente. */
+export async function getLaunchModelReady(): Promise<ModelReadyPayload | null> {
+  return null;
 }
