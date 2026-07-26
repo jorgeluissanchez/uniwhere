@@ -8,7 +8,11 @@ const config = getDefaultConfig(__dirname);
 // a cache read in the main process through `fs.promises`, which graceful-fs does not
 // patch — so on Windows a cold rebuild exhausts the process handle table and fails
 // with EMFILE. Capping the workers bounds that concurrency.
-config.maxWorkers = 6;
+//
+// Each worker is a separate Node process holding its own heap, so on memory-limited
+// machines this is also the knob that keeps a release bundle from thrashing swap.
+// Override with METRO_MAX_WORKERS (scripts/build-android.sh sets it).
+config.maxWorkers = Number(process.env.METRO_MAX_WORKERS) || 6;
 
 // Exclude generated native project dirs from Metro's watcher to prevent
 // crashes when Gradle writes files during a build.
