@@ -42,6 +42,11 @@ import {
   ensureNotificationPermission,
   notifyModelReady,
 } from '@/core/notifications/model-download-notifications';
+import {
+  startDownloadKeepAlive,
+  stopDownloadKeepAlive,
+  updateDownloadKeepAlive,
+} from '@/core/notifications/download-keepalive';
 
 function displayName(serie: string, jobId: string): string {
   const suffix = `_${jobId}`;
@@ -101,6 +106,18 @@ async function downloadModel(
     }
     throw e;
   }
+}
+
+/**
+ * Texto de la notificación persistente mientras se descarga. Lleva el nombre
+ * del escaneo porque, a diferencia del drawer, se ve fuera de la app y sin
+ * contexto de qué se estaba descargando.
+ */
+function keepAliveBody(name: string, progress: DownloadProgress | null): string {
+  if (!progress) return name;
+  if (progress.ratio !== null) return `${name} · ${Math.round(progress.ratio * 100)}%`;
+  if (progress.loaded <= 0) return name;
+  return `${name} · ${formatMegabytes(progress.loaded)}`;
 }
 
 function columnsForWidth(width: number): number {
@@ -192,9 +209,11 @@ export function ScanScreen() {
     // El `localUri` viaja en la notificación para que al tocarla el modelo se
     // abra directo, sin que el usuario tenga que buscar el escaneo otra vez.
     // Lo resuelve `ModelReadyBridge` en el layout raíz.
+    const name = displayName(scan.serie, scan.jobId);
+
     const notifyReady = (localUri: string) =>
       notifyModelReady({
-        serie: displayName(scan.serie, scan.jobId),
+        serie: name,
         scanId: scan._id,
         localUri,
       });
@@ -209,7 +228,10 @@ export function ScanScreen() {
           url: remoteUrl,
           fileUri,
           headers: reconstructionApiHeaders(),
-          onProgress: setProgress,
+          onProgress: (next) => {
+            setProgress(next);
+            updateDownloadKeepAlive(keepAliveBody(name, next));
+          },
         });
         downloadRef.current = handle;
         return handle;
@@ -233,6 +255,11 @@ export function ScanScreen() {
           uri = localUri;
         } else {
           setViewPhase('downloading');
+          // Se arranca aquí, todavía en primer plano y dentro del gesto del
+          // usuario: Android 12+ rechaza levantar un foreground service desde
+          // segundo plano. Es lo que evita que el sistema congele el proceso y
+          // con él el aviso de "modelo listo". Se detiene en el `finally`.
+          startDownloadKeepAlive('Descargando modelo', keepAliveBody(name, null));
           // El destino se fija antes de arrancar: la sesión nativa escribe
           // directo en ese archivo, así que una descarga que termina con la app
           // en segundo plano deja el PLY completo en disco sin pasar por JS.
@@ -270,6 +297,10 @@ export function ScanScreen() {
       if (cancelledRef.current || (e instanceof Error && e.name === 'AbortError')) return;
       setActionError(e instanceof Error ? e.message : 'No se pudo cargar el modelo');
     } finally {
+      // Después de `notifyReady`, no antes: en cuanto el servicio cae el proceso
+      // vuelve a ser congelable, y el aviso de "modelo listo" se programa en las
+      // ramas de arriba. Es idempotente y no-op si nunca llegó a arrancar.
+      stopDownloadKeepAlive();
       appStateSub.remove();
       downloadRef.current = null;
       setProgress(null);
