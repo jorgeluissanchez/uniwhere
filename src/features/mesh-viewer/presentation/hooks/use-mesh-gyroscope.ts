@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { DeviceMotion } from 'expo-sensors';
 import * as THREE from 'three';
+import { Platform } from 'react-native';
 
 interface GyroscopeResult {
   eulerRef: React.MutableRefObject<THREE.Euler>;
@@ -12,6 +13,11 @@ export function useMeshGyroscope(): GyroscopeResult {
   const [available, setAvailable] = useState(false);
 
   useEffect(() => {
+    // En web expo-sensors no expone un sensor real; el módulo existe pero sus
+    // metodos no estan implementados y addListener no es una funcion. Dejar
+    // available en false es honesto y evita el crash en cuanto el efecto corre.
+    if (Platform.OS === 'web') return;
+
     let subscription: ReturnType<typeof DeviceMotion.addListener> | null = null;
     let offsetAlpha = 0;
     let offsetBeta = 0;
