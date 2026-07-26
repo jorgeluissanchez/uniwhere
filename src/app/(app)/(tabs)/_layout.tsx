@@ -11,11 +11,13 @@ function BottomIcon({
   Icon,
   focused,
   primaryHsl,
+  primaryForegroundHsl,
   mutedHsl,
 }: {
   Icon: LucideIcon;
   focused: boolean;
   primaryHsl: string;
+  primaryForegroundHsl: string;
   mutedHsl: string;
 }) {
   return (
@@ -27,7 +29,10 @@ function BottomIcon({
     >
       <Icon
         size={20}
-        color={focused ? "#fff" : mutedHsl}
+        // El icono va sobre la píldora `primary`, así que le corresponde
+        // `primary-foreground`. Estaba fijo en `#fff`, que solo coincidía por
+        // casualidad con la paleta por defecto y se rompería con cualquier otra.
+        color={focused ? primaryForegroundHsl : mutedHsl}
         strokeWidth={focused ? 2.5 : 1.8}
       />
     </View>
@@ -43,6 +48,7 @@ function SidebarIcon({
   Icon: LucideIcon;
   focused: boolean;
   primaryHsl: string;
+  primaryForegroundHsl?: string;
   mutedHsl: string;
 }) {
   return (
@@ -69,7 +75,11 @@ export default function TabsLayout() {
   const isSidebar = width >= 768;
   const isSettingsScreen = segments.at(-1) === "settings";
 
+  // Esta pantalla es la excepción documentada a "los colores nunca se leen
+  // desde JS": `screenOptions` de expo-router no acepta `className`, así que los
+  // tokens se resuelven a mano. Siguen saliendo del mismo sitio que Tailwind.
   const primaryHsl = `hsl(${tokens.primary})`;
+  const primaryForegroundHsl = `hsl(${tokens.primaryForeground})`;
   const mutedHsl = `hsl(${tokens.mutedForeground})`;
   const cardHsl = `hsl(${tokens.card})`;
   const borderHsl = `hsl(${tokens.border})`;
@@ -78,7 +88,12 @@ export default function TabsLayout() {
     ? loggedUser.name.split(" ")[0]
     : (loggedUser?.email?.split("@")[0] ?? "Perfil");
 
-  const iconProps = (focused: boolean) => ({ focused, primaryHsl, mutedHsl });
+  const iconProps = (focused: boolean) => ({
+    focused,
+    primaryHsl,
+    primaryForegroundHsl,
+    mutedHsl,
+  });
 
   return (
     <Tabs

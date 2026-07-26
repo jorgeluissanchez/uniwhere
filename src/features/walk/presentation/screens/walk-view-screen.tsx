@@ -71,18 +71,20 @@ async function detectExpoGo(): Promise<boolean> {
 
 function ExpoGoFallback() {
   return (
-    <View style={styles.fallback}>
-      <Text style={styles.fallbackTitle}>Modo AR no disponible en Expo Go</Text>
-      <Text style={styles.fallbackBody}>
+    <View className="flex-1 bg-canvas px-6 pt-20 gap-4">
+      <Text className="text-canvas-foreground text-[22px] font-bold">
+        Modo AR no disponible en Expo Go
+      </Text>
+      <Text className="text-canvas-foreground/85 text-[15px] leading-[22px]">
         La función "Recorrer en VR" usa ARCore (Android) y ARKit (iOS), que
         no están incluidos en Expo Go. Para probarla necesitás un
         development build:
       </Text>
-      <Text style={styles.fallbackCode}>
+      <Text className="text-canvas-foreground font-mono text-[13px] bg-canvas-foreground/[0.06] border border-canvas-foreground/20 rounded-lg p-3">
         npx expo prebuild --clean{'\n'}
         npx expo run:android --device
       </Text>
-      <Text style={styles.fallbackHint}>
+      <Text className="text-canvas-foreground/55 text-[13px] italic">
         Dispositivo físico con ARCore (Android) o ARKit (iPhone ≥ 6s).
       </Text>
     </View>
@@ -108,8 +110,8 @@ export function WalkViewScreen() {
 
   if (isExpoGo === null) {
     return (
-      <View style={styles.loading}>
-        <Spinner size="large" />
+      <View className="flex-1 bg-canvas items-center justify-center">
+        <Spinner size="large" className="text-primary" />
       </View>
     );
   }
@@ -120,9 +122,9 @@ export function WalkViewScreen() {
 
   if (!cloud) {
     return (
-      <View style={styles.loading}>
-        <Spinner size="large" />
-        <Text style={{ marginTop: 12, color: "#fff" }}>
+      <View className="flex-1 bg-canvas items-center justify-center">
+        <Spinner size="large" className="text-primary" />
+        <Text className="text-canvas-foreground mt-3">
           {loading ? "Cargando PLY…" : error ?? "Sin PLY"}
         </Text>
       </View>
@@ -130,7 +132,9 @@ export function WalkViewScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    // `bg-black` y no `bg-canvas`: debajo va el feed de cámara de Viro, así que
+    // esto solo se ve el instante antes de que la sesión AR arranque.
+    <View className="flex-1 bg-black">
       {/* 1. Viro AR: cámara + pose. Lazy para no romper Expo Go. */}
       <React.Suspense fallback={null}>
         <LazyWalkArScene />
@@ -172,13 +176,15 @@ export function WalkViewScreen() {
   );
 }
 
+/**
+ * Lo único que queda en `StyleSheet`: la capa del `Canvas` de react-three-fiber,
+ * que no pasa por cssInterop y por tanto no acepta `className`. El resto de la
+ * pantalla usa utilidades de Tailwind con los tokens del design system.
+ *
+ * Transparente en toda la pila: cualquier color de fondo aquí vuelve a tapar el
+ * feed de la cámara que renderiza Viro por debajo.
+ */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#000",
-  },
-  // Transparente en toda la pila: cualquier color de fondo aquí vuelve a
-  // tapar el feed de la cámara que renderiza Viro por debajo.
   canvasLayer: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "transparent",
@@ -186,43 +192,5 @@ const styles = StyleSheet.create({
   canvas: {
     flex: 1,
     backgroundColor: "transparent",
-  },
-  loading: {
-    flex: 1,
-    backgroundColor: "#0f0f1a",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  fallback: {
-    flex: 1,
-    backgroundColor: "#0f0f1a",
-    paddingHorizontal: 24,
-    paddingTop: 80,
-    gap: 16,
-  },
-  fallbackTitle: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "700",
-  },
-  fallbackBody: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  fallbackCode: {
-    color: "#fff",
-    fontFamily: "monospace",
-    fontSize: 13,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-  },
-  fallbackHint: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 13,
-    fontStyle: "italic",
   },
 });

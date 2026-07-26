@@ -17,6 +17,7 @@
  * alrededor. No se añaden controles sintéticos.
  */
 import { Button } from '@/core/components/ui/button';
+import { Icon } from '@/core/components/ui/icon';
 import { Spinner } from '@/core/components/ui/spinner';
 import { Text } from '@/core/components/ui/text';
 import { useViewer } from '@/features/viewer/presentation/context/viewer-context';
@@ -64,9 +65,9 @@ export function WalkViewScreen() {
 
   if (!cloud) {
     return (
-      <View style={styles.loading}>
-        <Spinner size="large" />
-        <Text style={styles.loadingText}>
+      <View className="flex-1 bg-canvas items-center justify-center">
+        <Spinner size="large" className="text-primary" />
+        <Text className="text-canvas-foreground mt-3">
           {loading ? 'Cargando PLY…' : error ?? 'Sin PLY'}
         </Text>
       </View>
@@ -76,7 +77,9 @@ export function WalkViewScreen() {
   const xrReady = support === 'supported';
 
   return (
-    <View style={styles.container}>
+    // `bg-black` y no `bg-canvas`: debajo va el feed de la cámara, así que esto
+    // solo se ve mientras arranca.
+    <View className="flex-1 bg-black overflow-hidden">
       {/* La cámara de fondo solo hace falta sin WebXR: en una sesión inmersiva
           el compositor del navegador ya dibuja el paso de cámara. */}
       {!xrReady && <WalkCameraFeed onError={setFeedError} />}
@@ -91,12 +94,17 @@ export function WalkViewScreen() {
       <View style={styles.overlay} pointerEvents="box-none">
         <View style={styles.topRow} pointerEvents="box-none">
           <Button variant="secondary" size="icon" onPress={() => router.back()} testID="walk-exit">
-            <X size={20} />
+            {/* Vía `Icon`: hereda el color del Button por `TextClassContext`.
+                Un lucide crudo se pinta con su color por defecto. */}
+            <Icon as={X} size={20} />
           </Button>
         </View>
 
-        <View style={styles.hud} pointerEvents="none">
-          <Text style={styles.hudText}>
+        <View
+          className="absolute top-4 right-4 rounded-lg bg-canvas/45 px-2.5 py-1.5"
+          pointerEvents="none"
+        >
+          <Text className="text-canvas-foreground text-[11px]">
             {support === 'checking'
               ? 'Comprobando soporte AR…'
               : xrReady
@@ -108,19 +116,24 @@ export function WalkViewScreen() {
         <View style={styles.bottomRow} pointerEvents="box-none">
           {xrReady && !sessionActive && (
             <Button onPress={handleStart} testID="walk-start-xr">
-              <Eye size={16} />
+              <Icon as={Eye} size={16} />
               <Text>Iniciar AR</Text>
             </Button>
           )}
         </View>
 
         {(xrError || feedError || !xrReady) && (
-          <View style={styles.notice} pointerEvents="none">
+          <View
+            className="absolute bottom-8 left-4 max-w-[340px] rounded-lg bg-canvas/60 p-3"
+            pointerEvents="none"
+          >
             {(xrError || feedError) && (
-              <Text style={styles.noticeText}>{xrError ?? feedError}</Text>
+              <Text className="text-canvas-foreground/90 text-xs leading-[18px]">
+                {xrError ?? feedError}
+              </Text>
             )}
             {!xrReady && support !== 'checking' && !xrError && !feedError && (
-              <Text style={styles.noticeText}>
+              <Text className="text-canvas-foreground/90 text-xs leading-[18px]">
                 Este navegador no soporta AR con seguimiento de posición, así que
                 podés mirar alrededor pero no desplazarte. Para recorrer el modelo
                 caminando, abrilo en Chrome para Android o usá la app.
@@ -133,22 +146,11 @@ export function WalkViewScreen() {
   );
 }
 
+/**
+ * Solo queda aquí el layout absoluto de las capas de overlay. Todo color pasó a
+ * utilidades de Tailwind con los tokens del design system.
+ */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-    overflow: 'hidden',
-  },
-  loading: {
-    flex: 1,
-    backgroundColor: '#0f0f1a',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    color: '#fff',
-  },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     padding: 16,
@@ -158,38 +160,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     width: '100%',
   },
-  hud: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  hudText: {
-    color: '#fff',
-    fontSize: 11,
-  },
   bottomRow: {
     position: 'absolute',
     bottom: 32,
     right: 16,
     flexDirection: 'row',
     gap: 8,
-  },
-  notice: {
-    position: 'absolute',
-    bottom: 32,
-    left: 16,
-    maxWidth: 340,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: 12,
-    borderRadius: 8,
-  },
-  noticeText: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 12,
-    lineHeight: 18,
   },
 });

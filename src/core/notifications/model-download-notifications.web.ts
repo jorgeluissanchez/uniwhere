@@ -54,20 +54,37 @@ export type ModelReadyPayload = {
  */
 const listeners = new Set<(payload: ModelReadyPayload) => void>();
 
-/** Muestra la notificación de escritorio y avisa a los suscriptores al clic. */
+/**
+ * Muestra la notificación de escritorio y avisa a los suscriptores al clic.
+ *
+ * El `try` no es defensivo por si acaso: en Chrome para Android el constructor
+ * está prohibido y lanza `TypeError: Illegal constructor. Use
+ * ServiceWorkerRegistration.showNotification() instead` — y `isSupported()` no
+ * lo detecta, porque `Notification` sí existe en `window`, es construirlo lo que
+ * falla. Sin capturarlo, la excepción sube hasta el `catch` de la pantalla y el
+ * usuario ve un DOMException crudo en lugar del modelo que ya se descargó.
+ *
+ * Que en móvil no salga el aviso es una degradación aceptable; que tape un
+ * modelo listo con un error no lo es. Para que funcione de verdad ahí haría
+ * falta registrar un service worker y usar `showNotification()`.
+ */
 export async function notifyModelReady(payload: ModelReadyPayload): Promise<void> {
   if (!isSupported() || Notification.permission !== 'granted') return;
 
-  const notification = new Notification('Modelo listo', {
-    body: `${payload.serie} terminó de descargarse. Ábrelo para verlo en 3D.`,
-    tag: `model-ready-${payload.serie}`, // evita apilar avisos del mismo modelo
-  });
+  try {
+    const notification = new Notification('Modelo listo', {
+      body: `${payload.serie} terminó de descargarse. Ábrelo para verlo en 3D.`,
+      tag: `model-ready-${payload.serie}`, // evita apilar avisos del mismo modelo
+    });
 
-  notification.onclick = () => {
-    window.focus();
-    notification.close();
-    listeners.forEach((cb) => cb(payload));
-  };
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+      listeners.forEach((cb) => cb(payload));
+    };
+  } catch {
+    // Navegador que solo permite notificaciones desde un service worker.
+  }
 }
 
 export function addModelReadyListener(

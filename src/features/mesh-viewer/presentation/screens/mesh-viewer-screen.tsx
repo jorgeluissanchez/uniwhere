@@ -1,6 +1,7 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Button } from '@/core/components/ui/button';
+import { Spinner } from '@/core/components/ui/spinner';
 import { Text } from '@/core/components/ui/text';
 import { MeshCanvas } from '@/features/mesh-viewer/presentation/components/mesh-canvas';
 import { useMeshViewer } from '@/features/mesh-viewer/presentation/context/mesh-viewer-context';
@@ -12,9 +13,9 @@ export function MeshViewerScreen() {
 
   if (mesh) {
     return (
-      <View style={styles.container}>
+      <View className="flex-1 bg-canvas">
         <MeshCanvas mesh={mesh} eulerRef={eulerRef} available={available} />
-        <View style={styles.reloadButton}>
+        <View className="absolute top-12 right-4">
           <Button
             variant="secondary"
             onPress={loadMesh}
@@ -28,10 +29,10 @@ export function MeshViewerScreen() {
   }
 
   return (
-    <View style={styles.center}>
+    <View className="flex-1 items-center justify-center gap-3 p-6">
       {loading ? (
         <>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <Spinner size="large" className="text-primary" />
           <Text className="text-muted-foreground mt-3">Cargando modelo…</Text>
           <Text className="text-muted-foreground text-xs text-center max-w-[260px]">
             Los archivos grandes pueden tardar varios segundos
@@ -55,19 +56,3 @@ export function MeshViewerScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f0f1a' },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    gap: 12,
-  },
-  reloadButton: {
-    position: 'absolute',
-    top: 48,
-    right: 16,
-  },
-});

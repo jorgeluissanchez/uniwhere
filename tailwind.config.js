@@ -61,6 +61,12 @@ module.exports = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        // Superficie de las pantallas 3D. Oscura en ambos esquemas a propósito
+        // (ver la nota en global.css).
+        canvas: {
+          DEFAULT: 'hsl(var(--canvas))',
+          foreground: 'hsl(var(--canvas-foreground))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

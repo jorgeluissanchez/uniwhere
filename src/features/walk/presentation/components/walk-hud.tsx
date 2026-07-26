@@ -4,7 +4,7 @@
  */
 import { Text } from "@/core/components/ui/text";
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 
 type Props = {
   poseReady: boolean;
@@ -12,27 +12,14 @@ type Props = {
 
 export function WalkHud({ poseReady }: Props) {
   return (
-    <View style={styles.hud} pointerEvents="none">
-      <Text style={styles.line}>
+    <View
+      className="absolute top-4 right-4 rounded-lg bg-canvas/45 px-2.5 py-1.5"
+      pointerEvents="none"
+    >
+      {/* `tabular-nums` evita que el ancho baile cuando el texto cambia. */}
+      <Text className="text-canvas-foreground text-[11px] tabular-nums">
         {poseReady ? "Caminá para moverte" : "Iniciando AR…"}
       </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  hud: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  line: {
-    color: "#fff",
-    fontSize: 11,
-    fontVariant: ["tabular-nums"],
-  },
-});

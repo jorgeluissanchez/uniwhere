@@ -55,11 +55,18 @@ export function startDownloadKeepAlive(title: string, body: string): void {
  * Repinta el texto de progreso, como mucho una vez por segundo: el callback
  * nativo de progreso llega por cada chunk y notificar a esa frecuencia hace que
  * el sistema empiece a descartar actualizaciones.
+ *
+ * `force` salta ese límite. Es para los cambios de fase —"Guardando…"— que no
+ * son progreso: son poco frecuentes y no pueden perderse, porque si se pierden
+ * la notificación se queda diciendo algo que ya no es cierto.
  */
-export function updateDownloadKeepAlive(body: string): void {
+export function updateDownloadKeepAlive(
+  body: string,
+  options?: { force?: boolean },
+): void {
   if (!KeepAlive) return;
   const now = Date.now();
-  if (now - lastUpdate < UPDATE_INTERVAL_MS) return;
+  if (!options?.force && now - lastUpdate < UPDATE_INTERVAL_MS) return;
   lastUpdate = now;
   try {
     KeepAlive.update(body);

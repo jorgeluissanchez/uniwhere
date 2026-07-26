@@ -63,22 +63,15 @@ export function PhotoPicker({ photos, onPhotosChange, disabled }: Props) {
                 source={{ uri: p.uri }}
                 style={{ width: 64, height: 64, borderRadius: 12, opacity: 0.85 }}
               />
+              {/* El botón va encima de la miniatura, no sobre una superficie
+                  del tema: los tokens `canvas` son los que garantizan contraste
+                  contra una foto cualquiera en claro y oscuro por igual. */}
               {!disabled && (
                 <Pressable
                   onPress={() => remove(i)}
-                  style={{
-                    position: 'absolute',
-                    top: 20,
-                    left: 20,
-                    width: 24,
-                    height: 24,
-                    borderRadius: 12,
-                    backgroundColor: 'rgba(0,0,0,0.55)',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
+                  className="absolute top-5 left-5 w-6 h-6 rounded-full bg-canvas/55 items-center justify-center"
                 >
-                  <Icon as={Minus} size={14} className="text-white" strokeWidth={2.5} />
+                  <Icon as={Minus} size={14} className="text-canvas-foreground" strokeWidth={2.5} />
                 </Pressable>
               )}
             </View>

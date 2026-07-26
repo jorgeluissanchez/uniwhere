@@ -10,6 +10,7 @@
  * los toques en zonas vacías no consumen el evento.
  */
 import { Button } from "@/core/components/ui/button";
+import { Icon } from "@/core/components/ui/icon";
 import { Text } from "@/core/components/ui/text";
 import { useRouter } from "expo-router";
 import { Crosshair, X } from "lucide-react-native";
@@ -34,14 +35,18 @@ export function WalkControlsOverlay({ poseReady, onRecenter }: Props) {
           accessibilityLabel="Salir"
           testID="walk-exit"
         >
-          <X size={20} />
+          {/* Vía `Icon`, no `<X />` suelto: la primitiva lee el
+              `TextClassContext` del Button y hereda `text-secondary-foreground`.
+              Un lucide crudo se pinta con su color por defecto y se pierde
+              contra el fondo del botón. */}
+          <Icon as={X} size={20} />
         </Button>
       </View>
 
       <View style={styles.bottomRow} pointerEvents="box-none">
         {poseReady && (
           <Button onPress={onRecenter} testID="walk-recenter">
-            <Crosshair size={16} />
+            <Icon as={Crosshair} size={16} />
             <Text>Recentrar aquí</Text>
           </Button>
         )}

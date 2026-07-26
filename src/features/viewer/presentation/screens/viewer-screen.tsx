@@ -15,7 +15,7 @@ export function ViewerScreen() {
 
   if (cloud) {
     return (
-      <View className="flex-1 bg-[#0f0f1a]">
+      <View className="flex-1 bg-canvas">
         <PointCloudCanvas cloud={cloud} />
         <View className="absolute top-12 left-5">
           <Button
@@ -31,11 +31,13 @@ export function ViewerScreen() {
   }
 
   return (
-    <View className="flex-1 bg-[#0f0f1a] items-center justify-center gap-4 p-6">
+    <View className="flex-1 bg-canvas items-center justify-center gap-4 p-6">
       {loading ? (
         <>
           <Spinner size="large" className="text-primary" />
-          <Text className="text-muted-foreground mt-2">Procesando archivo PLY…</Text>
+          {/* Sobre el canvas no sirve `text-muted-foreground`: en tema claro es
+              gris oscuro y queda ilegible contra el fondo casi negro. */}
+          <Text className="text-canvas-foreground/70 mt-2">Procesando archivo PLY…</Text>
         </>
       ) : (
         <>

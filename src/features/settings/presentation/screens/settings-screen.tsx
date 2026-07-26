@@ -164,9 +164,11 @@ export default function SettingsScreen() {
       {/* Appearance dialog — rendered only when open, no touch blocking when closed */}
       {dialogOpen && (
         <View style={[StyleSheet.absoluteFill, styles.overlay]}>
+          {/* Scrim del diálogo: `canvas` es el token de "oscuro en ambos
+              esquemas", que es justo lo que un velo necesita. */}
           <Pressable
             style={StyleSheet.absoluteFill}
-            className="bg-black/50"
+            className="bg-canvas/50"
             onPress={() => setDialogOpen(false)}
           />
           <View style={styles.dialogContainer}>

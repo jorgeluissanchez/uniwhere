@@ -35,7 +35,7 @@ import { RelativePathString, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { useLocalization } from '@/features/localization/presentation/context/localization-context';
 import { ArrowUpFromLine, Camera, Plus, X } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Platform, ScrollView, useWindowDimensions, View } from 'react-native';
 import {
   configureModelDownloadNotifications,
@@ -120,6 +120,26 @@ function keepAliveBody(name: string, progress: DownloadProgress | null): string 
   return `${name} · ${formatMegabytes(progress.loaded)}`;
 }
 
+/**
+ * Techo para persistir el `localUri` tras la descarga.
+ *
+ * Sin él, una petición colgada en segundo plano deja vivo el foreground service
+ * indefinidamente —gastando batería y mostrando una notificación que ya no
+ * corresponde— porque el `finally` que lo apaga nunca llega a correr.
+ */
+const UPDATE_SCAN_TIMEOUT_MS = 15_000;
+
+/** Rechaza si la promesa no resuelve a tiempo. No la cancela: solo deja de esperarla. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error) => { clearTimeout(timer); reject(error); },
+    );
+  });
+}
+
 function columnsForWidth(width: number): number {
   if (width < 640) return 1;
   if (width < 900) return 2;
@@ -138,7 +158,19 @@ export function ScanScreen() {
 
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPlyAlert, setShowPlyAlert] = useState(false);
-  const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
+  /**
+   * El escaneo abierto se guarda por id y se deriva de la lista — no se copia.
+   *
+   * Guardando el objeto, `updateScan` actualizaba el array del contexto pero la
+   * copia local seguía con el `localUri` viejo, así que el efecto que calcula
+   * `isDownloaded` no se volvía a disparar y el botón seguía diciendo "Bajar
+   * Modelo" hasta cerrar y reabrir el drawer (que sí tomaba un objeto nuevo).
+   */
+  const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
+  const selectedScan = useMemo(
+    () => scans.find((s) => s._id === selectedScanId) ?? null,
+    [scans, selectedScanId],
+  );
   const [viewPhase, setViewPhase] = useState<ViewPhase>('idle');
   /** Avance de la descarga en curso, o `null` si aún no llegó ningún evento. */
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
@@ -183,7 +215,7 @@ export function ScanScreen() {
     setViewPhase('idle');
     setProgress(null);
     setActionError(null);
-    setSelectedScan(null);
+    setSelectedScanId(null);
   };
 
   const handleViewModel = async () => {
@@ -265,15 +297,36 @@ export function ScanScreen() {
           // en segundo plano deja el PLY completo en disco sin pasar por JS.
           const dest = new File(Paths.document, `${scan.jobId}_${scan.tipo ?? 'dense'}.ply`);
           uri = await downloadModel(startDownload(dest.uri));
-          await updateScan(scan._id, uri);
-
           if (cancelledRef.current) return;
-          if (leftApp || AppState.currentState !== 'active') {
-            // Ya quedó guardado: avisamos y cortamos aquí. Tocar la
-            // notificación abre el modelo directamente.
-            await notifyReady(uri);
-            return;
+
+          const inBackground = leftApp || AppState.currentState !== 'active';
+
+          // El aviso va ANTES de persistir, no después. `updateScan` es un
+          // round-trip de red; en segundo plano puede tardar o colgarse, y
+          // mientras tanto el usuario no recibía nada aunque el PLY ya
+          // estuviera completo en disco. Nada que pueda bloquearse debe
+          // interponerse entre "archivo listo" y "usuario enterado".
+          // El `localUri` viaja en el payload, así que tocar la notificación
+          // abre el modelo sin depender de que el registro remoto se haya
+          // actualizado.
+          if (inBackground) await notifyReady(uri);
+
+          // La notificación de progreso dejó de ser cierta en cuanto terminó la
+          // descarga. `force` porque el throttle de progreso descartaría este
+          // cambio de fase, y es justo el que no puede perderse.
+          updateDownloadKeepAlive('Guardando…', { force: true });
+
+          try {
+            await withTimeout(updateScan(scan._id, uri), UPDATE_SCAN_TIMEOUT_MS);
+          } catch {
+            // Bookkeeping fallido, no descarga fallida: el PLY está en disco y
+            // el aviso ya salió. Lo único que se pierde es el registro remoto
+            // del `localUri`, así que el modelo se volverá a descargar la
+            // próxima vez — molesto, no roto. Tumbar el flujo aquí sí sería
+            // roto: taparía con un error un modelo que está listo.
           }
+
+          if (inBackground) return;
         }
         if (cancelledRef.current) return;
         setViewPhase('preparing');
@@ -291,7 +344,7 @@ export function ScanScreen() {
       }
 
       // El drawer se cierra recién aquí, cuando ya hay algo que mostrar.
-      setSelectedScan(null);
+      setSelectedScanId(null);
       router.push('/viewer' as RelativePathString);
     } catch (e) {
       if (cancelledRef.current || (e instanceof Error && e.name === 'AbortError')) return;
@@ -328,7 +381,7 @@ export function ScanScreen() {
     // futura con el mismo id retomaría bytes de un modelo que ya no existe.
     await forgetModelDownload(selectedScan._id);
     await deleteScan(selectedScan._id);
-    setSelectedScan(null);
+    setSelectedScanId(null);
   };
 
   return (
@@ -389,7 +442,7 @@ export function ScanScreen() {
                       variant="outline"
                       size="sm"
                       className="mt-auto w-full"
-                      onPress={() => setSelectedScan(scan)}
+                      onPress={() => setSelectedScanId(scan._id)}
                     >
                       <Text>Ver detalles</Text>
                     </Button>
@@ -510,7 +563,7 @@ export function ScanScreen() {
                 onPress={() => {
                   locCtx.reset();
                   locCtx.setSelectedScan(selectedScan!);
-                  setSelectedScan(null);
+                  setSelectedScanId(null);
                   router.push('/localization' as RelativePathString);
                 }}
               >
@@ -526,7 +579,7 @@ export function ScanScreen() {
                   // Reusa el ViewerContext ya montado globalmente: cargar el
                   // PLY antes de navegar para que la pantalla walk-view lo
                   // encuentre en `viewerContext.cloud`.
-                  setSelectedScan(null);
+                  setSelectedScanId(null);
                   router.push({ pathname: '/walk-view' as any, params: { localUri: scan.localUri ?? '' } });
                 }}
               >

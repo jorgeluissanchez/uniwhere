@@ -39,10 +39,21 @@ const buttonVariants = cva(
         ),
         link: '',
       },
+      // `min-h-*` y no `h-*` en las variantes con texto.
+      //
+      // La altura fija viene de shadcn web, donde el CSS del botón lleva
+      // `whitespace-nowrap` y la etiqueta jamás envuelve. En nativo esa
+      // protección no existe: un texto que no cabe salta a dos líneas y la
+      // altura fija recorta la segunda sin previo aviso — un botón que decía
+      // "Ver detalles" pasaba a mostrar solo "Ver". Con `min-h` el botón crece
+      // en vez de amputar su propia etiqueta.
+      //
+      // `icon` sí conserva la altura fija: su contenido es un glifo de tamaño
+      // conocido y ahí el cuadrado exacto es justamente lo que se quiere.
       size: {
         default: cn('min-h-14 px-5 py-3', Platform.select({ web: 'has-[>svg]:px-4 sm:h-10' })),
-        sm: cn('h-9 gap-1.5 rounded-md px-2.5 py-2 sm:h-8', Platform.select({ web: 'has-[>svg]:px-2' })),
-        lg: cn('h-12 rounded-md px-7 py-3 sm:h-11', Platform.select({ web: 'has-[>svg]:px-5' })),
+        sm: cn('min-h-9 gap-1.5 rounded-md px-2.5 py-2 sm:min-h-8', Platform.select({ web: 'has-[>svg]:px-2' })),
+        lg: cn('min-h-12 rounded-md px-7 py-3 sm:min-h-11', Platform.select({ web: 'has-[>svg]:px-5' })),
         icon: 'h-10 w-10 p-0 sm:h-9 sm:w-9',
       },
     },

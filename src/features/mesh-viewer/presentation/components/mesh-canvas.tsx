@@ -39,7 +39,7 @@ function CameraController({ eulerRef, boundingBox }: CameraControllerProps) {
 function FallbackOverlay() {
   return (
     <View style={styles.fallback}>
-      <Text className="text-white text-sm text-center">
+      <Text className="text-canvas-foreground text-sm text-center">
         Giroscopio no disponible.{'\n'}La cámara permanece estática.
       </Text>
     </View>

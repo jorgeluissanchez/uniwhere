@@ -60,6 +60,22 @@
     --input: 0 0% 89.8%;
     --ring: 0 0% 63%;
 
+    /* ---------- CANVAS INMERSIVO -------------------------------------------
+       Superficie de las pantallas 3D (visor PLY, mesh, walk AR). A propósito
+       NO sigue el esquema claro/oscuro: un fondo claro detrás de una nube de
+       puntos la vuelve ilegible, así que es oscuro en las dos paletas — por eso
+       el bloque `.dark:root` no lo redefine.
+
+       Existe como token porque el valor estaba repetido como `#0f0f1a` literal
+       en cinco pantallas, que es exactamente lo que un design system evita.
+       `240 27% 8%` es ese mismo `#0f0f1a` en canales HSL.
+
+       No hay token "muted" para el texto: los grises sobre el canvas salen del
+       modificador de opacidad (`text-canvas-foreground/60`), igual que el resto
+       de la paleta. */
+    --canvas: 240 27% 8%;
+    --canvas-foreground: 0 0% 100%;
+
     /* ---------- CHARTS ----------------------------------------------------- */
     --chart-1: 239 84% 67%;
     --chart-2: 199 89% 48%;
