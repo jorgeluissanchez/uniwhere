@@ -1,6 +1,7 @@
 import { reconstructionApiHeaders } from '@/core/lib/api-headers';
 import {
   downloadWithProgress,
+  DownloadProgress,
   HttpStatusError,
   isPlyCached,
   modelDownloadUrl,
@@ -57,11 +58,30 @@ const VIEW_PHASE_LABEL: Record<Exclude<ViewPhase, 'idle'>, string> = {
   preparing: 'Preparando vista…',
 };
 
+function formatMegabytes(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * Etiqueta de la fase de descarga. Se prefiere el porcentaje, pero `/download`
+ * transmite el PLY en streaming sin declarar `Content-Length`, así que lo
+ * habitual es no poder calcularlo; en ese caso se muestran los MB recibidos, que
+ * es avance real y no un spinner mudo.
+ */
+function downloadLabel(progress: DownloadProgress | null): string {
+  if (!progress) return VIEW_PHASE_LABEL.downloading;
+  if (progress.ratio !== null) {
+    return `Descargando modelo… ${Math.round(progress.ratio * 100)}%`;
+  }
+  if (progress.loaded <= 0) return VIEW_PHASE_LABEL.downloading;
+  return `Descargando modelo… ${formatMegabytes(progress.loaded)}`;
+}
+
 /** Descarga el modelo traduciendo el código HTTP al mensaje que ve el usuario. */
 async function downloadModel(
   url: string,
   signal: AbortSignal,
-  onProgress: (ratio: number | null) => void,
+  onProgress: (progress: DownloadProgress) => void,
 ): Promise<ArrayBuffer> {
   try {
     return await downloadWithProgress(url, {
@@ -100,19 +120,17 @@ export function ScanScreen() {
   const [showPlyAlert, setShowPlyAlert] = useState(false);
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
   const [viewPhase, setViewPhase] = useState<ViewPhase>('idle');
-  /** Fracción descargada, o `null` si el servidor no declara el tamaño. */
-  const [progress, setProgress] = useState<number | null>(null);
+  /** Avance de la descarga en curso, o `null` si aún no llegó ningún evento. */
+  const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const viewBusy = viewPhase !== 'idle';
 
-  // El porcentaje solo se muestra si el servidor declaró el tamaño; si no, la
-  // etiqueta se queda en el texto de la fase y el spinner hace de indicador.
   const busyLabel =
     viewPhase === 'idle'
       ? ''
-      : viewPhase === 'downloading' && progress !== null
-        ? `Descargando modelo… ${Math.round(progress * 100)}%`
+      : viewPhase === 'downloading'
+        ? downloadLabel(progress)
         : VIEW_PHASE_LABEL[viewPhase];
 
   // Nativo: el archivo en disco. Web: la entrada en Cache Storage que deja el
