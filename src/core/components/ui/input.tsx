@@ -5,7 +5,7 @@ function Input({ className, ...props }: React.ComponentProps<typeof TextInput>) 
   return (
     <TextInput
       className={cn(
-        'bg-muted text-foreground flex h-14 w-full min-w-0 flex-row items-center rounded-2xl px-4 py-1 text-base leading-5',
+        'bg-card text-foreground border border-input flex h-14 w-full min-w-0 flex-row items-center rounded-2xl px-4 py-1 text-base leading-5',
         props.editable === false &&
           cn(
             'opacity-50',
@@ -14,7 +14,7 @@ function Input({ className, ...props }: React.ComponentProps<typeof TextInput>) 
         Platform.select({
           web: cn(
             'placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground outline-none transition-[color,box-shadow] md:text-sm',
-            'focus-visible:ring-primary/50 focus-visible:ring-[3px]',
+            'focus-visible:border-ring focus-visible:ring-primary/50 focus-visible:ring-[3px]',
           ),
           native: 'placeholder:text-muted-foreground/50',
         }),

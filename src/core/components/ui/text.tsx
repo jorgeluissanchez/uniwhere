@@ -20,7 +20,7 @@ const textVariants = cva(
           Platform.select({ web: 'scroll-m-20 text-balance' })
         ),
         h2: cn(
-          'border-border pb-2 text-3xl font-cal',
+          'border-border text-primary pb-2 text-3xl font-cal',
           Platform.select({ web: 'scroll-m-20 first:mt-0' })
         ),
         h3: cn('text-2xl', Platform.select({ web: 'scroll-m-20' })),

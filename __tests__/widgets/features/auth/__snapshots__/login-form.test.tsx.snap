@@ -7,7 +7,7 @@ exports[`LoginForm matches snapshot 1`] = `
   <View>
     <TextInput
       autoCapitalize="none"
-      className="bg-muted text-foreground flex h-14 w-full min-w-0 flex-row items-center rounded-2xl px-4 py-1 text-base leading-5 placeholder:text-muted-foreground/50"
+      className="bg-card text-foreground border border-input flex h-14 w-full min-w-0 flex-row items-center rounded-2xl px-4 py-1 text-base leading-5 placeholder:text-muted-foreground/50"
       keyboardType="email-address"
       onChangeText={[Function]}
       onSubmitEditing={[Function]}
@@ -19,7 +19,7 @@ exports[`LoginForm matches snapshot 1`] = `
   </View>
   <View>
     <TextInput
-      className="bg-muted text-foreground flex h-14 w-full min-w-0 flex-row items-center rounded-2xl px-4 py-1 text-base leading-5 placeholder:text-muted-foreground/50"
+      className="bg-card text-foreground border border-input flex h-14 w-full min-w-0 flex-row items-center rounded-2xl px-4 py-1 text-base leading-5 placeholder:text-muted-foreground/50"
       onChangeText={[Function]}
       onSubmitEditing={[Function]}
       placeholder="Contraseña"

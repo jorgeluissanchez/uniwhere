@@ -237,6 +237,9 @@ importers:
         specifier: ^0.184.0
         version: 0.184.0
     devDependencies:
+      '@expo/config-plugins':
+        specifier: 55.0.9
+        version: 55.0.9
       '@testing-library/jest-native':
         specifier: ^5.4.3
         version: 5.4.3(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react-test-renderer@19.2.0(react@19.2.0))(react@19.2.0)

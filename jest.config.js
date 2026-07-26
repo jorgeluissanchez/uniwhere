@@ -35,7 +35,7 @@ module.exports = {
     // pnpm stores packages under node_modules/.pnpm/<name>@<version>/node_modules/<name>,
     // so the allow-list must also match right after an optional `.pnpm/` segment, where
     // scope separators are `+` instead of `/`.
-    'node_modules/(?!(\\.pnpm/)?((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?[/+].*|@expo-google-fonts[/+].*|react-navigation|@react-navigation[/+].*|@rn-primitives[/+].*|nativewind|tailwind-merge|class-variance-authority))',
+    'node_modules/(?!(\\.pnpm/)?((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?[/+].*|@expo-google-fonts[/+].*|react-navigation|@react-navigation[/+].*|@rn-primitives[/+].*|nativewind|tailwind-merge|class-variance-authority|three([/+].*)?))',
   ],
   collectCoverageFrom: [
     'src/features/**/*.{ts,tsx}',
