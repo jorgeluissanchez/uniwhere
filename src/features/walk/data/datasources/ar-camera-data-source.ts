@@ -11,12 +11,24 @@
  * muestrear.
  */
 
+export type Vec3 = readonly [number, number, number];
+
 export type ArCameraPose = {
   /** Posición de la cámara en el mundo, en metros. */
-  position: readonly [number, number, number];
-  /** Cuaternión de la cámara (x, y, z, w). */
-  rotation: readonly [number, number, number, number];
-  /** Yaw en radianes extraído del cuaternión (para joysticks forward/right). */
+  position: Vec3;
+  /**
+   * Hacia dónde apunta la cámara, unitario y en world-space.
+   *
+   * Se guarda la base {forward, up} y no un cuaternión ni los ángulos de Euler
+   * porque es lo único que Viro entrega sin ambigüedad. Su `rotation` son
+   * ángulos de Euler en GRADOS y sin orden documentado, así que reconstruir la
+   * orientación desde ahí obliga a adivinar convenciones; `forward`/`up` son
+   * vectores del mundo y no dependen de ninguna.
+   */
+  forward: Vec3;
+  /** Vector "arriba" de la cámara, unitario y en world-space. */
+  up: Vec3;
+  /** Yaw en radianes derivado de `forward`, proyectado al plano XZ. */
   yaw: number;
   /** Timestamp en ms del frame. */
   timestamp: number;

@@ -8,12 +8,20 @@
  *
  * No instanciamos ViroARScene aquí: ese detalle es de la capa de
  * presentación. Esta clase sólo guarda observadores y publica la pose.
+ *
+ * IMPORTANTE — el `rotation` de Viro NO es un cuaternión. Es `[x, y, z]`:
+ * tres ángulos de Euler en grados (ver `ViroRotation` en
+ * `components/Types/ViroUtils.ts`). Leerlo como `[x, y, z, w]` deja `w` en
+ * `undefined`, lo que produce un cuaternión NaN, una matriz de cámara NaN y
+ * una escena que deja de dibujarse por completo. Por eso la pose viaja como
+ * la base {forward, up}, que Viro entrega ya en world-space.
  */
 import * as THREE from 'three';
 
 import {
   ArCameraDataSource,
   ArCameraPose,
+  Vec3,
 } from './ar-camera-data-source';
 
 type Listener = (pose: ArCameraPose) => void;
@@ -37,19 +45,22 @@ export class ArCameraViroDataSourceImpl implements ArCameraDataSource {
   }
 
   /**
-   * Llamado por `walk-ar-scene.tsx` desde `onCameraTransformUpdate`. El
-   * `forward` de Viro viene en world-space; de ahí derivamos el yaw para
-   * que el joystick no dependa de la cinematic order del cuaternión.
+   * Llamado por `walk-ar-scene.tsx` desde `onCameraTransformUpdate`.
+   *
+   * `forward` y `up` vienen de Viro ya en world-space, que es justo lo que se
+   * necesita para orientar la cámara de Three.js sin depender del orden de los
+   * ángulos de Euler.
    */
   publishFromViro(viro: {
-    position: readonly [number, number, number];
-    rotation: readonly [number, number, number, number];
+    position: Vec3;
+    forward: Vec3;
+    up: Vec3;
   }): void {
-    const yaw = this.extractYawFromQuaternion(viro.rotation);
     const pose: ArCameraPose = {
       position: viro.position,
-      rotation: viro.rotation,
-      yaw,
+      forward: viro.forward,
+      up: viro.up,
+      yaw: yawFromForward(viro.forward),
       timestamp: Date.now(),
     };
     this.latest = pose;
@@ -60,30 +71,41 @@ export class ArCameraViroDataSourceImpl implements ArCameraDataSource {
   markUnavailable(): void {
     this.tracking = 'unavailable';
   }
+}
 
-  /**
-   * El yaw que queremos es la dirección "hacia donde apunta el teléfono" en
-   * el plano horizontal (XZ). Con cuaternión (x, y, z, w) y la convención
-   * Three.js (Y-up, -Z forward), basta con proyectar el vector forward al
-   * plano XZ y sacar atan2.
-   */
-  private extractYawFromQuaternion(q: readonly [number, number, number, number]): number {
-    const [x, y, z, w] = q;
-    // forward esperado en Three.js: (-2(xz + wy), ..., -2(yz - wx))
-    // para el yaw proyectado a XZ basta con atan2 de la XZ:
-    const siny_cosp = 2 * (w * y + x * z);
-    const cosy_cosp = 1 - 2 * (y * y + z * z);
-    return Math.atan2(siny_cosp, cosy_cosp);
-  }
+/**
+ * Yaw de la cámara proyectando `forward` al plano horizontal.
+ *
+ * Convención compartida con `walk-vector.ts`: yaw=0 mira hacia -Z, y el yaw
+ * positivo gira hacia -X. De ahí `atan2(-x, -z)`.
+ *
+ * Si el teléfono apunta recto al suelo o al cielo la proyección se degenera y
+ * el yaw deja de estar definido; en ese caso se conserva 0 en vez de devolver
+ * un valor que salta con el ruido del tracking.
+ */
+export function yawFromForward(forward: Vec3): number {
+  const [x, , z] = forward;
+  if (Math.hypot(x, z) < 1e-6) return 0;
+  return Math.atan2(-x, -z);
+}
 
-  /**
-   * Reconvierte la pose de Viro a un `THREE.Vector3` / `THREE.Quaternion`.
-   * Útil en el bridge para evitar objetos `Vector3` por frame.
-   */
-  toThree(pose: ArCameraPose): { position: THREE.Vector3; quaternion: THREE.Quaternion } {
-    return {
-      position: new THREE.Vector3(pose.position[0], pose.position[1], pose.position[2]),
-      quaternion: new THREE.Quaternion(pose.rotation[0], pose.rotation[1], pose.rotation[2], pose.rotation[3]),
-    };
-  }
+/**
+ * Construye el cuaternión de la cámara a partir de la base {forward, up}.
+ *
+ * `Matrix4.lookAt` produce la rotación cuyo -Z apunta de `eye` a `target`, que
+ * es exactamente la convención de cámara de Three.js.
+ */
+export function quaternionFromBasis(
+  forward: Vec3,
+  up: Vec3,
+  target: THREE.Quaternion,
+): THREE.Quaternion {
+  const eye = new THREE.Vector3(0, 0, 0);
+  const at = new THREE.Vector3(forward[0], forward[1], forward[2]);
+  const upVec = new THREE.Vector3(up[0], up[1], up[2]);
+  // Un forward degenerado (todo ceros antes del primer frame real) produciría
+  // una matriz sin inversa y un cuaternión NaN: se deja la orientación previa.
+  if (at.lengthSq() < 1e-12 || upVec.lengthSq() < 1e-12) return target;
+  const matrix = new THREE.Matrix4().lookAt(eye, at, upVec);
+  return target.setFromRotationMatrix(matrix);
 }

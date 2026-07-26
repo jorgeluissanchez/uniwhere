@@ -35,16 +35,21 @@ export function WalkArScene() {
   const di = useDI();
   const cameraDS = di.resolve<ArCameraViroDataSourceImpl>(TOKENS.WalkArCameraDS);
 
+  // Se toman `forward` y `up`, no `rotation`: el `rotation` de Viro son ángulos
+  // de Euler en grados, no un cuaternión (ver la nota en el data source).
   const onCameraTransformUpdate = useCallback(
     (viro: {
       position: ReadonlyArray<number>;
-      rotation: ReadonlyArray<number>;
+      forward: ReadonlyArray<number>;
+      up: ReadonlyArray<number>;
     }) => {
       const [px, py, pz] = viro.position;
-      const [rx, ry, rz, rw] = viro.rotation;
+      const [fx, fy, fz] = viro.forward;
+      const [ux, uy, uz] = viro.up;
       cameraDS.publishFromViro({
         position: [px, py, pz],
-        rotation: [rx, ry, rz, rw],
+        forward: [fx, fy, fz],
+        up: [ux, uy, uz],
       });
     },
     [cameraDS],

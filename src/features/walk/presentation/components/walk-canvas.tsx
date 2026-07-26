@@ -23,13 +23,7 @@ import { PlyCloud } from "@/features/viewer/domain/entities/ply-cloud";
 
 import { WalkAnchor } from "../hooks/use-walk-anchoring";
 import { WalkPoseRef } from "../hooks/use-walk-pose";
-
-/**
- * Tamaño del punto en metros. A escala real (0.005 m = 5 mm) la nube es
- * literalmente invisible a más de un par de metros: cada punto cae por debajo
- * del pixel. 2 cm es lo mínimo que se lee como superficie caminando.
- */
-const POINT_SIZE = 0.02;
+import { WalkCloud } from "./walk-cloud";
 
 type Props = {
   cloud: PlyCloud;
@@ -57,18 +51,6 @@ export function WalkCanvas({ cloud, poseRef, eyeHeight, anchor }: Props) {
   });
 
   return (
-    <group
-      position={[anchor.x, groundOffsetY, anchor.z]}
-      rotation={[0, anchor.yaw, 0]}
-    >
-      <points geometry={cloud.geometry}>
-        <pointsMaterial
-          size={POINT_SIZE}
-          sizeAttenuation
-          vertexColors={cloud.geometry.hasAttribute("color")}
-          color={cloud.geometry.hasAttribute("color") ? undefined : "#cccccc"}
-        />
-      </points>
-    </group>
+    <WalkCloud geometry={cloud.geometry} groundOffsetY={groundOffsetY} anchor={anchor} />
   );
 }

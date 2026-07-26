@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { ArCameraPose } from "../../data/datasources/ar-camera-data-source";
+import { quaternionFromBasis } from "../../data/datasources/ar-camera-viro-data-source-impl";
 
 export type WalkPoseRef = {
   position: THREE.Vector3;
@@ -50,12 +51,10 @@ export function useWalkPose(): { poseRef: WalkPoseRef; ready: boolean } {
     const cam = repo.getArCamera();
     const unsub = cam.onPoseUpdate((pose) => {
       poseRef.current.position.set(pose.position[0], pose.position[1], pose.position[2]);
-      poseRef.current.quaternion.set(
-        pose.rotation[0],
-        pose.rotation[1],
-        pose.rotation[2],
-        pose.rotation[3],
-      );
+      // La orientación se reconstruye desde {forward, up}. Leer el `rotation`
+      // de Viro como cuaternión dejaba `w` en `undefined`: la cámara quedaba
+      // con una matriz NaN y la escena entera desaparecía tras el primer frame.
+      quaternionFromBasis(pose.forward, pose.up, poseRef.current.quaternion);
       poseRef.current.yaw = pose.yaw;
       poseRef.current.timestamp = pose.timestamp;
       if (!poseRef.current.ready) {
